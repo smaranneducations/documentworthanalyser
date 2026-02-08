@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /report/placeholder/
+
+Sitemap: https://documentworthanalyser.web.app/sitemap.xml

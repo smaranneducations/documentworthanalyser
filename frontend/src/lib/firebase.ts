@@ -229,7 +229,17 @@ function toAnalysisDoc(id: string, data: any): AnalysisDoc {
     uploaded_at: data.uploaded_at?.toDate?.() ?? new Date(),
     analysis_result: {
       ...data.analysis_result,
-      linkedin_hashtags: data.analysis_result?.linkedin_hashtags ?? [],
+      linkedin_hashtags: data.analysis_result?.linkedin_hashtags?.length
+        ? data.analysis_result.linkedin_hashtags
+        : [
+            "#DocumentAnalysis", "#AIForensics", "#VendorAssessment",
+            "#ConsultingProposal", "#EnterpriseAI", "#AIStrategy",
+            "#DigitalTransformation", "#ITStrategy", "#DataDriven",
+            "#CTO", "#CIO", "#VPEngineering", "#PlatformData",
+            "#AIinProduction", "#CloudStrategy", "#DevOps",
+            "#AIProductivity", "#VendorLockIn", "#EnterpriseIT",
+            "#BusinessIntelligence",
+          ],
     },
     ...(data.pdf_highlights ? { pdf_highlights: data.pdf_highlights } : {}),
     // Auth / visibility — backward-compatible: legacy docs default to public/anonymous

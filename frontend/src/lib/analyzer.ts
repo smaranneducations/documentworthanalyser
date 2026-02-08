@@ -28,6 +28,17 @@ import type {
   AmazingFact,
 } from "./types";
 
+// ── Fallback LinkedIn hashtags for when Gemini is unavailable ────────────
+const DEFAULT_LINKEDIN_HASHTAGS: string[] = [
+  "#DocumentAnalysis", "#AIForensics", "#VendorAssessment",
+  "#ConsultingProposal", "#EnterpriseAI", "#AIStrategy",
+  "#DigitalTransformation", "#ITStrategy", "#DataDriven",
+  "#CTO", "#CIO", "#VPEngineering", "#PlatformData",
+  "#AIinProduction", "#CloudStrategy", "#DevOps",
+  "#AIProductivity", "#VendorLockIn", "#EnterpriseIT",
+  "#BusinessIntelligence",
+];
+
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILITY HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -952,7 +963,7 @@ export async function analyzeDocument(text: string): Promise<AnalysisResult> {
     provider_consumer, company_scale, target_scale, audience_level,
     rarity_index, forensics, implementation_readiness, obsolescence_risk,
     hype_reality, regulatory_safety, visual_intensity, data_intensity,
-    bias_detection, amazing_facts, linkedin_hashtags: [] as string[],
+    bias_detection, amazing_facts, linkedin_hashtags: DEFAULT_LINKEDIN_HASHTAGS,
   };
 
   const overall_trust_score = computeOverallTrust(partial);
@@ -1070,7 +1081,8 @@ export function mergeGeminiResults(
   const amazing_facts = safe(L4.amazing_facts, []) as AmazingFact[];
   const overall_trust_score = clamp(Math.round(safe(L4.overall_trust_score, 50) as number), 0, 100);
   const summary = safe(L4.summary, "Analysis complete.") as string;
-  const linkedin_hashtags = safe(L4.linkedin_hashtags, []) as string[];
+  const rawHashtags = safe(L4.linkedin_hashtags, []) as string[];
+  const linkedin_hashtags = rawHashtags.length > 0 ? rawHashtags : DEFAULT_LINKEDIN_HASHTAGS;
 
   return {
     overall_trust_score,

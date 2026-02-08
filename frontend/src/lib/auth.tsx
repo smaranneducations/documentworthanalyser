@@ -27,6 +27,7 @@ import {
   type User,
 } from "firebase/auth";
 import { app } from "./firebase";
+import { recordSignIn, recordSignOut, recordSessionHeartbeat } from "./firebase";
 
 // ── Firebase Auth instance ────────────────────────────────────────────────
 const auth = getAuth(app);
@@ -62,13 +63,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
+      // Record heartbeat for existing sessions (page reload / revisit)
+      if (firebaseUser?.uid && firebaseUser?.email) {
+        recordSessionHeartbeat(firebaseUser.uid, firebaseUser.email).catch(() => {});
+      }
     });
     return unsubscribe;
   }, []);
 
   const handleSignIn = async (): Promise<UserCredential | null> => {
     try {
-      return await signInWithPopup(auth, googleProvider);
+      const credential = await signInWithPopup(auth, googleProvider);
+      // Record sign-in analytics
+      if (credential?.user?.uid && credential?.user?.email) {
+        recordSignIn(credential.user.uid, credential.user.email).catch(() => {});
+      }
+      return credential;
     } catch (err) {
       console.error("[Auth] Google sign-in failed:", err);
       return null;
@@ -77,6 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = async () => {
     try {
+      // Record session end before signing out
+      if (user?.uid) {
+        await recordSignOut(user.uid).catch(() => {});
+      }
       await firebaseSignOut(auth);
     } catch (err) {
       console.error("[Auth] Sign-out failed:", err);

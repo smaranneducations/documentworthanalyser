@@ -30,6 +30,14 @@
 //        ├─ comment_category    (string|null) — classified intent
 //        └─ escalation_summary  (string|null) — set when Gemini escalates to admin
 //
+// users/{uid}
+//   ├─ email                  (string)
+//   ├─ first_seen             (timestamp)
+//   ├─ last_seen              (timestamp)
+//   ├─ login_count            (number)
+//   ├─ total_session_seconds  (number)   — cumulative session time
+//   └─ current_session_start  (timestamp|null)
+//
 // glossary/{id}
 //   ├─ term        (string)
 //   ├─ category    (string)
@@ -58,9 +66,11 @@ import {
   Timestamp,
   limit,
   writeBatch,
+  increment,
+  updateDoc,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import type { AnalysisResult, AnalysisDoc, CommentDoc, PdfHighlights } from "./types";
+import type { AnalysisResult, AnalysisDoc, CommentDoc, PdfHighlights, UserDoc } from "./types";
 
 export type { AnalysisResult, AnalysisDoc, CommentDoc } from "./types";
 
@@ -453,4 +463,114 @@ export async function isGlossarySeeded(): Promise<boolean> {
   const q = query(collection(db, "glossary"), limit(1));
   const snap = await getDocs(q);
   return !snap.empty;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// USER ANALYTICS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Record a user sign-in event.
+ * Creates the user doc if first visit, otherwise increments login_count.
+ */
+export async function recordSignIn(uid: string, email: string): Promise<void> {
+  const userRef = doc(db, "users", uid);
+  const snap = await getDoc(userRef);
+  const now = Timestamp.now();
+
+  if (!snap.exists()) {
+    // First-time user
+    await setDoc(userRef, {
+      email,
+      first_seen: now,
+      last_seen: now,
+      login_count: 1,
+      total_session_seconds: 0,
+      current_session_start: now,
+    });
+  } else {
+    // Returning user
+    await updateDoc(userRef, {
+      email,               // update in case they changed Google accounts
+      last_seen: now,
+      login_count: increment(1),
+      current_session_start: now,
+    });
+  }
+}
+
+/**
+ * Record a user sign-out event.
+ * Calculates session duration and adds it to the cumulative total.
+ */
+export async function recordSignOut(uid: string): Promise<void> {
+  const userRef = doc(db, "users", uid);
+  const snap = await getDoc(userRef);
+
+  if (!snap.exists()) return;
+
+  const data = snap.data();
+  const sessionStart = data.current_session_start;
+
+  if (sessionStart) {
+    const startMs = sessionStart.toMillis();
+    const nowMs = Date.now();
+    const durationSeconds = Math.round((nowMs - startMs) / 1000);
+
+    await updateDoc(userRef, {
+      total_session_seconds: increment(durationSeconds),
+      current_session_start: null,
+      last_seen: Timestamp.now(),
+    });
+  } else {
+    await updateDoc(userRef, {
+      current_session_start: null,
+      last_seen: Timestamp.now(),
+    });
+  }
+}
+
+/**
+ * Update last_seen for an already-authenticated session (e.g. page reload).
+ * Also ensures current_session_start is set if missing (tab was closed without logout).
+ */
+export async function recordSessionHeartbeat(uid: string, email: string): Promise<void> {
+  const userRef = doc(db, "users", uid);
+  const snap = await getDoc(userRef);
+  const now = Timestamp.now();
+
+  if (!snap.exists()) {
+    // User exists in Auth but not in our users collection — create doc
+    await setDoc(userRef, {
+      email,
+      first_seen: now,
+      last_seen: now,
+      login_count: 1,
+      total_session_seconds: 0,
+      current_session_start: now,
+    });
+  } else {
+    const data = snap.data();
+    // If there was an orphaned session (closed tab without logout), settle it
+    if (data.current_session_start) {
+      const startMs = data.current_session_start.toMillis();
+      const nowMs = Date.now();
+      const durationSeconds = Math.round((nowMs - startMs) / 1000);
+      // Cap orphaned sessions at 2 hours to avoid inflated numbers
+      const cappedDuration = Math.min(durationSeconds, 7200);
+
+      await updateDoc(userRef, {
+        total_session_seconds: increment(cappedDuration),
+        current_session_start: now,
+        last_seen: now,
+        email,
+      });
+    } else {
+      await updateDoc(userRef, {
+        current_session_start: now,
+        last_seen: now,
+        email,
+      });
+    }
+  }
 }

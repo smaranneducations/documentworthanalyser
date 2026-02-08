@@ -240,6 +240,16 @@ export interface AnalysisDoc {
   uploader_email: string | null;      // for display & ownership checks
 }
 
+export interface UserDoc {
+  uid: string;
+  email: string;
+  first_seen: Date;
+  last_seen: Date;
+  login_count: number;
+  total_session_seconds: number;     // cumulative time logged in
+  current_session_start: Date | null; // null when logged out
+}
+
 export interface CommentDoc {
   id: string;
   user_name: string;          // display name or "Anonymous"

@@ -227,7 +227,10 @@ function toAnalysisDoc(id: string, data: any): AnalysisDoc {
     author: data.author ?? "",
     doc_summary: data.doc_summary ?? "",
     uploaded_at: data.uploaded_at?.toDate?.() ?? new Date(),
-    analysis_result: data.analysis_result,
+    analysis_result: {
+      ...data.analysis_result,
+      linkedin_hashtags: data.analysis_result?.linkedin_hashtags ?? [],
+    },
     ...(data.pdf_highlights ? { pdf_highlights: data.pdf_highlights } : {}),
     // Auth / visibility — backward-compatible: legacy docs default to public/anonymous
     visibility: data.visibility ?? "public",

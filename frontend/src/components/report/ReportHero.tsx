@@ -1,4 +1,7 @@
-import { Hash, Calendar, MessageSquare } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Hash, Calendar, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
 import TrustScoreGauge from "@/components/TrustScoreGauge";
 import ClassificationBadge from "@/components/dashboard/ClassificationBadge";
 import HelpTooltip from "@/components/HelpTooltip";
@@ -6,11 +9,21 @@ import { tip } from "@/lib/tooltips";
 import type { ReportSlideProps } from "./types";
 
 export default function ReportHero({ analysis, r, openDiscuss }: ReportSlideProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Truncate summary to ~40 words for collapsed view
+  const fullSummary = r.summary || "";
+  const words = fullSummary.split(/\s+/).filter(Boolean);
+  const shortSummary = words.length > 40 ? words.slice(0, 40).join(" ") + "..." : fullSummary;
+  const needsTruncation = words.length > 40;
+
+  const hashtags = r.linkedin_hashtags ?? [];
+
   return (
     <section className="report-slide min-h-screen flex items-center bg-gradient-to-b from-zinc-950 via-zinc-950 to-zinc-900/80 scroll-snap-align-start">
       <div className="mx-auto max-w-7xl w-full px-6 py-16">
         {/* Header */}
-        <div className="mb-12 flex flex-col lg:flex-row items-center gap-8 print-no-break">
+        <div className="mb-12 flex flex-col lg:flex-row items-start gap-8 print-no-break">
           <div className="flex-1">
             <p className="text-sm uppercase tracking-widest text-blue-400 font-semibold mb-3">Document Analysis Report</p>
             <h1 className="text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
@@ -22,7 +35,56 @@ export default function ReportHero({ analysis, r, openDiscuss }: ReportSlideProp
             {analysis.display_name && (
               <p className="mt-1 text-xs text-zinc-600 font-mono">{analysis.filename}</p>
             )}
-            <p className="mt-4 text-lg text-zinc-400 leading-relaxed max-w-3xl">{r.summary}</p>
+
+            {/* Collapsible Summary */}
+            <div className="mt-4">
+              <p className="text-base text-zinc-400 leading-relaxed max-w-3xl">
+                {expanded ? fullSummary : shortSummary}
+              </p>
+
+              {/* Hashtags — shown when expanded */}
+              {expanded && hashtags.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {hashtags.map((tag, i) => (
+                    <span
+                      key={i}
+                      className="inline-block rounded-full bg-blue-500/10 border border-blue-500/20 px-3 py-1 text-xs text-blue-400 font-medium"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Detail toggle */}
+              {needsTruncation && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="mt-2 inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                >
+                  {expanded ? (
+                    <>Less <ChevronUp className="h-3 w-3" /></>
+                  ) : (
+                    <>Detail <ChevronDown className="h-3 w-3" /></>
+                  )}
+                </button>
+              )}
+
+              {/* Show hashtags button when collapsed and hashtags exist */}
+              {!expanded && !needsTruncation && hashtags.length > 0 && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="mt-2 inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                >
+                  {expanded ? (
+                    <>Less <ChevronUp className="h-3 w-3" /></>
+                  ) : (
+                    <>Detail <ChevronDown className="h-3 w-3" /></>
+                  )}
+                </button>
+              )}
+            </div>
+
             <div className="mt-4 flex items-center gap-4 text-xs text-zinc-600">
               <HelpTooltip text={tip("file_hash")} position="right">
                 <span className="flex items-center gap-1 cursor-help">
@@ -36,7 +98,12 @@ export default function ReportHero({ analysis, r, openDiscuss }: ReportSlideProp
               </span>
             </div>
           </div>
-          <div className="shrink-0 print-gauge-wrap">
+
+          {/* Trust Score + CTA */}
+          <div className="shrink-0 flex flex-col items-center print-gauge-wrap">
+            <p className="text-sm font-bold text-zinc-300 text-center mb-3 max-w-[220px] leading-snug">
+              Please comment and help us improve if you want to contest the assessment
+            </p>
             <TrustScoreGauge score={r.overall_trust_score} size={220} />
           </div>
         </div>

@@ -222,6 +222,9 @@ export interface AnalysisResult {
   // Bias & Insights
   bias_detection: BiasDetection;
   amazing_facts: AmazingFact[];
+
+  // LinkedIn sharing
+  linkedin_hashtags: string[];   // e.g. ["#AIStrategy", "#VendorAnalysis"]
 }
 
 export interface AnalysisDoc {

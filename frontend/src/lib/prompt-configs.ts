@@ -276,13 +276,19 @@ Return JSON with:
    Cover: who wrote it, who it targets, key strengths, key red flags, 
    overall verdict. Be concise and actionable.
 
+6. **linkedin_hashtags**: Generate 8-12 relevant LinkedIn hashtags for sharing this report.
+   Include a mix of: document topic hashtags, industry hashtags, and general professional hashtags.
+   Each hashtag should start with # and be in CamelCase (e.g. #AIStrategy, #VendorAnalysis).
+   Return as an array of strings.
+
 RESPOND WITH ONLY VALID JSON:
 {
   "hype_reality": { "positive_sentiment_pct": 0, "risk_mentions": 0, "failure_acknowledgments": 0, "balance_assessment": "", "hype_score": 0, "classification": "" },
   "rarity_index": { "drivers": [...], "composite_score": 0, "confidence": 0, "classification": "" },
   "amazing_facts": [],
   "overall_trust_score": 0,
-  "summary": ""
+  "summary": "",
+  "linkedin_hashtags": ["#Example", "#Hashtag"]
 }`,
 
   response_schema: `{
@@ -290,7 +296,8 @@ RESPOND WITH ONLY VALID JSON:
   "rarity_index": { "drivers": [{ "name": string, "weight": number, "score": number, "rationale": string }], "composite_score": number, "confidence": number, "classification": string },
   "amazing_facts": [{ "fact": string, "why_amazing": string, "is_contrarian": boolean, "is_quantified": boolean }],
   "overall_trust_score": number,
-  "summary": string
+  "summary": string,
+  "linkedin_hashtags": [string]
 }`,
 };
 

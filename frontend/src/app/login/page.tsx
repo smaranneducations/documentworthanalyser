@@ -3,7 +3,7 @@
 import { useAuth } from "@/lib/auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Shield, Search } from "lucide-react";
+import { Shield } from "lucide-react";
 
 export default function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth();
@@ -29,9 +29,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo / Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 mb-4">
-            <Search className="h-8 w-8 text-blue-400" />
-          </div>
+          <img src="/logo.png" alt="DocDetector" className="mx-auto h-20 w-20 rounded-2xl mb-4" />
           <h1 className="text-2xl font-bold tracking-tight">DocDetector</h1>
           <p className="text-sm text-zinc-500 mt-1">AI Forensic Analyst for Business Documents</p>
         </div>

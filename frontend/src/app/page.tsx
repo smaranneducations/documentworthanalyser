@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Shield, FileText, ArrowRight, TrendingUp, Eye, Sparkles,
+  FileText, ArrowRight, TrendingUp, Eye, Sparkles,
   BarChart3, Brain, Search, Users, Zap, Loader2, BookOpen,
   Play, FileText as ReadIcon, AlertTriangle, X, MessageSquare,
   ChevronDown, ChevronUp,
@@ -481,9 +481,7 @@ export default function HomePage() {
       <header className="border-b border-zinc-800">
         <div className="mx-auto max-w-6xl px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-blue-500/10 p-2">
-              <Shield className="h-6 w-6 text-blue-400" />
-            </div>
+            <img src="/logo.png" alt="DocDetector" className="h-10 w-10 rounded-xl" />
             <div>
               <h1 className="text-lg font-bold tracking-tight">DocDetector</h1>
               <p className="text-xs text-zinc-500">AI-Powered Agentic Document Analyzer</p>

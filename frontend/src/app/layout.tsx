@@ -18,7 +18,8 @@ export const metadata: Metadata = {
   description:
     "Upload consulting proposals, vendor pitches, whitepapers, and advisory decks. Get AI-powered forensic analysis across 5 decision modules — detecting manipulation, bias, fluff, obsolescence, and hidden commercial motives.",
   icons: {
-    icon: { url: "/icon-32.svg", type: "image/svg+xml" },
+    icon: { url: "/logo.png", type: "image/png" },
+    apple: { url: "/logo.png", type: "image/png" },
   },
   openGraph: {
     title: "DocDetector — AI Forensic Analyst for Business Documents",

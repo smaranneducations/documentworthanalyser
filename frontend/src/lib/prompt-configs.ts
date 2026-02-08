@@ -294,6 +294,71 @@ RESPOND WITH ONLY VALID JSON:
 }`,
 };
 
+// ─── Layer 5: PDF Highlight Curation ─────────────────────────────────────
+
+const LAYER_5_CONFIG: PromptConfig = {
+  id: "layer_5",
+  name: "Layer 5: PDF Highlight Curation",
+  layer: 5,
+  temperature: 0.4,
+  max_output_tokens: 2000,
+  version: 1,
+  system_instruction: `You are a content strategist who creates punchy, share-worthy executive summaries 
+from forensic document analysis reports. Your output will be used to generate a PDF highlight reel 
+that people upload to LinkedIn as a carousel post. Every slide needs to stop the scroll — 
+use strong, specific language with numbers. Avoid generic statements. 
+Write like a senior analyst briefing a busy executive, not like a textbook.`,
+
+  prompt_template: `You have the COMPLETE analysis results for a document. Your job is to pick the 
+most attention-grabbing, share-worthy findings and write them up as a highlight reel.
+
+=== ANALYSIS RESULTS (all layers) ===
+{{PRIOR_RESULTS}}
+
+Create a JSON object with:
+
+1. **headline**: A catchy one-liner for the PDF cover page. Include the trust score number. 
+   Make it specific to THIS document — not generic. Max 120 characters.
+   Examples of good headlines:
+   - "Trust Score 34/100 — Heavy manipulation detected in this AI consulting pitch"
+   - "This whitepaper scores 78/100 but hides 3 critical biases"
+   - "Category-Defining content buried under Sales Propaganda tactics"
+
+2. **hook_findings**: An array of 6-8 findings, ranked by how attention-grabbing they are. 
+   Each finding becomes one slide in the PDF carousel. For each:
+   - **section**: which analysis area (e.g. "manipulation", "hype", "bias", "fallacy", 
+     "implementation", "obsolescence", "regulatory", "finding", "uniqueness", "fluff")
+   - **title**: Bold headline for the slide (max 60 chars). Include the score/number.
+   - **insight**: 1-2 sentence explanation that makes the reader want to see more. 
+     Be specific — quote evidence, name the exact bias type, cite the exact number.
+     Max 200 characters.
+   - **hook_score**: 1-10 rating of how share-worthy this finding is. 
+     Score higher: surprising numbers, red flags, contradictions, extreme scores.
+     Score lower: neutral findings, expected results, generic observations.
+
+IMPORTANT RULES:
+- Prioritize findings with extreme scores (very high or very low)
+- Prioritize contradictions (e.g. high trust but high manipulation)
+- Include at least one finding from forensics (deception/fallacies/fluff)
+- Include at least one finding from the strategic modules
+- Include the most striking amazing_fact if one exists
+- DO NOT include generic observations — every insight must reference a specific number or evidence
+- Sort hook_findings by hook_score descending (most catchy first)
+
+RESPOND WITH ONLY VALID JSON:
+{
+  "headline": "",
+  "hook_findings": [
+    { "section": "", "title": "", "insight": "", "hook_score": 0 }
+  ]
+}`,
+
+  response_schema: `{
+  "headline": string,
+  "hook_findings": [{ "section": string, "title": string, "insight": string, "hook_score": number }]
+}`,
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -303,6 +368,7 @@ export const DEFAULT_PROMPT_CONFIGS: PromptConfig[] = [
   LAYER_2_CONFIG,
   LAYER_3_CONFIG,
   LAYER_4_CONFIG,
+  LAYER_5_CONFIG,
 ];
 
 export function getConfigByLayer(layer: number): PromptConfig | undefined {

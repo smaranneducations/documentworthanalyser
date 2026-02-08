@@ -51,7 +51,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import type { AnalysisResult, AnalysisDoc, CommentDoc } from "./types";
+import type { AnalysisResult, AnalysisDoc, CommentDoc, PdfHighlights } from "./types";
 
 export type { AnalysisResult, AnalysisDoc, CommentDoc } from "./types";
 
@@ -97,6 +97,7 @@ export async function saveAnalysis(data: {
   author?: string;
   doc_summary?: string;
   analysis_result: AnalysisResult;
+  pdf_highlights?: PdfHighlights;
 }): Promise<string> {
   console.log("[Firestore] saveAnalysis: writing document…");
 
@@ -108,6 +109,11 @@ export async function saveAnalysis(data: {
   const words = fullSummary.split(/\s+/).filter(Boolean);
   const summary = words.length > 300 ? words.slice(0, 300).join(" ") + "…" : fullSummary;
 
+  // Sanitize pdf_highlights if present
+  const sanitizedHighlights = data.pdf_highlights
+    ? JSON.parse(JSON.stringify(data.pdf_highlights))
+    : null;
+
   const payload = {
     file_hash: data.file_hash,
     filename: data.filename,
@@ -118,6 +124,7 @@ export async function saveAnalysis(data: {
     file_type: data.file_type,
     summary,
     analysis_result: sanitizedResult,
+    ...(sanitizedHighlights ? { pdf_highlights: sanitizedHighlights } : {}),
     uploaded_at: Timestamp.now(),
   };
 
@@ -180,6 +187,7 @@ function toAnalysisDoc(id: string, data: any): AnalysisDoc {
     doc_summary: data.doc_summary ?? "",
     uploaded_at: data.uploaded_at?.toDate?.() ?? new Date(),
     analysis_result: data.analysis_result,
+    ...(data.pdf_highlights ? { pdf_highlights: data.pdf_highlights } : {}),
   };
 }
 

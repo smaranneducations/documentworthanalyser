@@ -10,7 +10,7 @@ interface HelpTooltipProps {
   children?: React.ReactNode;
   /** Show the small ? icon. Defaults to true when no children. */
   showIcon?: boolean;
-  /** Max width of tooltip in px */
+  /** Max width of tooltip in px — overrides the default 20vw */
   maxWidth?: number;
   /** Position hint */
   position?: "top" | "bottom" | "left" | "right";
@@ -21,7 +21,7 @@ export default function HelpTooltip({
   insight,
   children,
   showIcon,
-  maxWidth = 280,
+  maxWidth,
   position = "top",
 }: HelpTooltipProps) {
   const shouldShowIcon = showIcon ?? !children;
@@ -40,6 +40,12 @@ export default function HelpTooltip({
     right: "right-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-l-transparent border-r-zinc-700",
   };
 
+  // Default to 20vw (≈1/5 screen), clamped between 260px and 480px.
+  // If caller passes an explicit maxWidth in px, use that instead.
+  const widthStyle: React.CSSProperties = maxWidth
+    ? { width: "max-content", maxWidth }
+    : { width: "max-content", maxWidth: "clamp(260px, 20vw, 480px)" };
+
   return (
     <span className="relative inline-flex items-center group/tooltip">
       {children}
@@ -53,9 +59,9 @@ export default function HelpTooltip({
           opacity-0 group-hover/tooltip:opacity-100
           transition-opacity duration-200
         `}
-        style={{ maxWidth }}
+        style={widthStyle}
       >
-        <span className="block rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-xs leading-relaxed shadow-xl">
+        <span className="block rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2.5 text-xs leading-relaxed shadow-xl">
           <span className="text-zinc-300">{text}</span>
           {insight && (
             <>

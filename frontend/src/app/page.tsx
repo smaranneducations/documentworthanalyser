@@ -352,6 +352,7 @@ export default function HomePage() {
       }
 
       let result;
+      let pdfHighlightsRaw: unknown = null;
 
       if (useGemini) {
         // ── Hybrid: Heuristic pre-pass + Gemini layers ──────────────
@@ -368,10 +369,11 @@ export default function HomePage() {
           console.warn("[4/7] Page image generation failed (non-blocking):", err);
         }
 
-        console.log("[5/7] Running Gemini 4-layer pipeline…");
+        console.log("[5/7] Running Gemini 5-layer pipeline…");
         try {
           const geminiLayers = await runGeminiPipeline(text, heuristic, pageImages);
           result = mergeGeminiResults(heuristic, geminiLayers as { layer1: Record<string, unknown>; layer2: Record<string, unknown>; layer3: Record<string, unknown>; layer4: Record<string, unknown> });
+          pdfHighlightsRaw = geminiLayers.layer5;
           console.log("[5/7] Gemini analysis complete. Trust score:", result.overall_trust_score);
         } catch (err) {
           console.error("[5/7] Gemini pipeline failed, falling back to heuristic:", err);
@@ -395,6 +397,7 @@ export default function HomePage() {
         author: docMetadata.author,
         doc_summary: docMetadata.summary,
         analysis_result: result,
+        pdf_highlights: pdfHighlightsRaw as { headline: string; hook_findings: { section: string; title: string; insight: string; hook_score: number }[] } | undefined,
       });
       console.log("[6/7] Done. Firestore doc ID:", id);
 

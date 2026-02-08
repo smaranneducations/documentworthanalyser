@@ -162,6 +162,7 @@ export async function runGeminiPipeline(
   layer2: unknown;
   layer3: unknown;
   layer4: unknown;
+  layer5: unknown;
 }> {
   const heuristicStr = JSON.stringify(heuristicPrePass, null, 2);
 
@@ -192,7 +193,22 @@ export async function runGeminiPipeline(
   const layer4 = result4.parsed;
   console.log("[Gemini] Layer 4 complete.");
 
-  return { layer1, layer2, layer3, layer4 };
+  // ── Layer 5: PDF Highlight Curation ─────────────────────────────────
+  let layer5: unknown = null;
+  try {
+    const config5 = getConfigByLayer(5)!;
+    // Layer 5 only needs the analysis results — no document text needed.
+    // We pass all prior layers as "prior results" and a minimal doc text placeholder.
+    const allResults = JSON.stringify({ layer_1: layer1, layer_2: layer2, layer_3: layer3, layer_4: layer4 }, null, 2);
+    const result5 = await callGeminiWithRetry(config5, "See prior results.", heuristicStr, allResults, null);
+    layer5 = result5.parsed;
+    console.log("[Gemini] Layer 5 (PDF highlights) complete.");
+  } catch (err) {
+    console.warn("[Gemini] Layer 5 (PDF highlights) failed — non-blocking:", err);
+    // Layer 5 is non-critical; PDF will still work with fallback
+  }
+
+  return { layer1, layer2, layer3, layer4, layer5 };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

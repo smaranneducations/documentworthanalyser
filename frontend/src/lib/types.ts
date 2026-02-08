@@ -175,6 +175,22 @@ export interface AmazingFact {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// PDF HIGHLIGHTS (curated by Gemini for the highlight reel PDF)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface PdfHighlightFinding {
+  section: string;         // e.g. "manipulation", "hype", "bias", "finding", "obsolescence"
+  title: string;           // bold one-liner for the slide heading
+  insight: string;         // punchy 1-2 sentence explanation
+  hook_score: number;      // 1-10 — how attention-grabbing this finding is
+}
+
+export interface PdfHighlights {
+  headline: string;                   // catchy cover page headline
+  hook_findings: PdfHighlightFinding[];  // ranked findings for slides
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // COMPLETE ANALYSIS RESULT
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -217,6 +233,7 @@ export interface AnalysisDoc {
   doc_summary: string;        // AI-extracted 1-2 sentence summary
   uploaded_at: Date;
   analysis_result: AnalysisResult;
+  pdf_highlights?: PdfHighlights;  // Gemini-curated highlights for PDF export
 }
 
 export interface CommentDoc {

@@ -196,6 +196,92 @@ export async function runGeminiPipeline(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Document Fitness Check (Layer 0)
+// Quick Gemini call to determine if the document is suitable for this tool
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface FitnessResult {
+  fit: boolean;
+  document_type: string;
+  document_domain: string;
+  reason: string;
+}
+
+export async function checkDocumentFitness(
+  documentText: string,
+): Promise<FitnessResult> {
+  const client = getClient();
+
+  // Only send first ~5000 chars for a quick check
+  const snippet = documentText.slice(0, 5000);
+
+  const prompt = `You are a document classifier. Your ONLY job is to determine whether the following document
+is suitable for analysis by a forensic engine that specializes in **technology vendor and advisory documents**.
+
+SUITABLE document types:
+- Consulting proposals and sales pitches
+- Vendor whitepapers and thought leadership papers
+- Training brochures and course catalogs
+- Advisory and strategy decks
+- RFP responses from technology vendors
+- Product/platform marketing documents
+
+SUITABLE subject domains:
+- Artificial Intelligence, Machine Learning, Generative AI, Agentic AI
+- Data & Analytics, Big Data, Data Engineering
+- Cloud Computing, DevOps, Infrastructure
+- Digital Transformation, Automation, RPA
+- Cybersecurity, Governance, Risk & Compliance
+- Enterprise Software, SaaS, Platform Engineering
+
+NOT SUITABLE (examples):
+- Legal contracts, NDAs, terms of service
+- Financial reports, balance sheets, tax documents
+- HR policies, employee handbooks
+- Academic research papers, peer-reviewed journals
+- Personal letters, resumes, CVs
+- News articles, blog posts, social media content
+- Medical records, clinical documents
+- Government legislation, court filings
+- Fiction, creative writing
+
+=== DOCUMENT SNIPPET (first ~5000 chars) ===
+${snippet}
+
+Respond with ONLY valid JSON:
+{
+  "fit": true/false,
+  "document_type": "brief description of what this document is, e.g. 'AI consulting proposal', 'cloud migration whitepaper'",
+  "document_domain": "the domain, e.g. 'AI & Data Analytics', 'Cloud Computing'",
+  "reason": "one sentence explaining why it is or isn't suitable"
+}`;
+
+  const response = await client.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: {
+      systemInstruction: "You are a document classifier. Return only valid JSON. Be strict but fair — if the document is even partially about technology vendor services, advisory, or training in the listed domains, mark it as fit.",
+      temperature: 0.05,
+      maxOutputTokens: 500,
+    },
+  });
+
+  const text = response.text ?? "";
+  try {
+    const jsonStr = text
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    return JSON.parse(jsonStr) as FitnessResult;
+  } catch {
+    console.warn("[Gemini] Fitness check JSON parse failed, allowing document:", text.slice(0, 300));
+    // If parsing fails, let the document through rather than blocking
+    return { fit: true, document_type: "Unknown", document_domain: "Unknown", reason: "Fitness check inconclusive — allowing analysis." };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Check if Gemini is available (key configured)
 // ═══════════════════════════════════════════════════════════════════════════
 

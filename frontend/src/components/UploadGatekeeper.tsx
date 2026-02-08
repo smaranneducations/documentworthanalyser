@@ -123,8 +123,13 @@ export default function UploadGatekeeper({
         // Small delay to let React commit the "done" state so user sees the success message
         setTimeout(() => onViewReport(id), 300);
       } catch (err) {
-        setStage("error");
         const msg = err instanceof Error ? err.message : String(err);
+        // If document was rejected by fitness check, silently reset (modal handles UX)
+        if (msg === "DOCUMENT_NOT_FIT") {
+          setStage("idle");
+          return;
+        }
+        setStage("error");
         console.error("Analysis pipeline error:", err);
         setErrorMsg(`Analysis failed: ${msg}`);
       }

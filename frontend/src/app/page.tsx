@@ -6,13 +6,14 @@ import Link from "next/link";
 import {
   Shield, FileText, ArrowRight, TrendingUp, Eye, Sparkles,
   BarChart3, Brain, Search, Users, Zap, Loader2, BookOpen,
-  Play, FileText as ReadIcon,
+  Play, FileText as ReadIcon, AlertTriangle, X,
 } from "lucide-react";
 import UploadGatekeeper from "@/components/UploadGatekeeper";
 import HelpTooltip from "@/components/HelpTooltip";
 import { tip } from "@/lib/tooltips";
 import { analyzeDocument, runHeuristicPrePass, mergeGeminiResults } from "@/lib/analyzer";
-import { runGeminiPipeline, isGeminiAvailable } from "@/lib/gemini";
+import { runGeminiPipeline, isGeminiAvailable, checkDocumentFitness } from "@/lib/gemini";
+import type { FitnessResult } from "@/lib/gemini";
 import { pdfToImages } from "@/lib/pdf-to-images";
 import { extractText } from "@/lib/extract-text";
 import type { AnalysisDoc } from "@/lib/types";
@@ -23,10 +24,98 @@ import {
   uploadFile,
 } from "@/lib/firebase";
 
+// ── Rejection Modal ─────────────────────────────────────────────────────
+function RejectionModal({
+  fitness,
+  onClose,
+}: {
+  fitness: FitnessResult;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+      router.push("/");
+    }, 60000);
+    return () => clearTimeout(timer);
+  }, [onClose, router]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+      <div className="relative mx-4 max-w-lg w-full rounded-2xl border border-red-500/30 bg-zinc-900 p-8 shadow-2xl">
+        {/* Close X */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 transition-colors"
+        >
+          <X className="h-5 w-5" />
+          <span className="sr-only">Close</span>
+        </button>
+
+        {/* Icon */}
+        <div className="flex justify-center mb-5">
+          <div className="rounded-full bg-red-500/10 p-4">
+            <AlertTriangle className="h-10 w-10 text-red-400" />
+          </div>
+        </div>
+
+        {/* Title */}
+        <h3 className="text-xl font-bold text-center text-zinc-100 mb-4">
+          Document Not Suitable
+        </h3>
+
+        {/* Our purpose */}
+        <div className="rounded-lg bg-zinc-800/60 border border-zinc-700 p-4 mb-4">
+          <p className="text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Our Purpose</p>
+          <p className="text-sm text-zinc-300 leading-relaxed">
+            DocDetector analyzes <strong>technology vendor &amp; advisory documents</strong> — consulting proposals,
+            vendor pitches, training brochures, whitepapers, and advisory decks on
+            AI, Data, Cloud, Digital Transformation, and Governance.
+          </p>
+        </div>
+
+        {/* What they uploaded */}
+        <div className="rounded-lg bg-zinc-800/60 border border-zinc-700 p-4 mb-4">
+          <p className="text-xs uppercase tracking-wider text-zinc-500 mb-1.5">Your Document</p>
+          <p className="text-sm text-zinc-300">
+            <strong>{fitness.document_type}</strong>
+            {fitness.document_domain !== "Unknown" && (
+              <span className="text-zinc-500"> &middot; {fitness.document_domain}</span>
+            )}
+          </p>
+          <p className="text-xs text-zinc-500 mt-1">{fitness.reason}</p>
+        </div>
+
+        {/* Verdict */}
+        <p className="text-center text-sm text-zinc-400 mb-6">
+          This document falls outside the scope of our forensic analysis engine.
+          No report will be generated.
+        </p>
+
+        {/* OK button */}
+        <button
+          onClick={onClose}
+          className="w-full rounded-xl bg-zinc-800 border border-zinc-700 py-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-700 transition-colors"
+        >
+          OK
+        </button>
+
+        {/* Auto-redirect notice */}
+        <p className="text-center text-xs text-zinc-600 mt-3">
+          Returning to home in 60 seconds&hellip;
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   const router = useRouter();
   const [recentAnalyses, setRecentAnalyses] = useState<AnalysisDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rejectionModal, setRejectionModal] = useState<FitnessResult | null>(null);
 
   // Load analyses from Firestore on mount
   useEffect(() => {
@@ -61,45 +150,63 @@ export default function HomePage() {
       const useGemini = isGeminiAvailable();
       console.log(`[0] Analysis mode: ${useGemini ? "GEMINI + Heuristic" : "Heuristic Only"}`);
 
-      console.log("[1/6] Extracting text from file…");
+      console.log("[1/7] Extracting text from file…");
       const text = await extractText(file);
-      console.log("[1/6] Done. Text length:", text.length);
+      console.log("[1/7] Done. Text length:", text.length);
+
+      // ── Document fitness check (Layer 0) ──────────────────────────
+      if (useGemini) {
+        console.log("[2/7] Checking document fitness…");
+        try {
+          const fitness = await checkDocumentFitness(text);
+          console.log("[2/7] Fitness result:", fitness);
+          if (!fitness.fit) {
+            setRejectionModal(fitness);
+            throw new Error("DOCUMENT_NOT_FIT");
+          }
+          console.log("[2/7] Document is suitable. Proceeding.");
+        } catch (err) {
+          if ((err as Error).message === "DOCUMENT_NOT_FIT") throw err;
+          // If fitness check itself fails, let the document through
+          console.warn("[2/7] Fitness check failed (non-blocking), allowing document:", err);
+        }
+      }
 
       let result;
 
       if (useGemini) {
         // ── Hybrid: Heuristic pre-pass + Gemini layers ──────────────
-        console.log("[2/6] Running heuristic pre-pass…");
+        console.log("[3/7] Running heuristic pre-pass…");
         const heuristic = runHeuristicPrePass(text);
-        console.log("[2/6] Done. Word count:", heuristic.word_count);
+        console.log("[3/7] Done. Word count:", heuristic.word_count);
 
-        console.log("[3/6] Generating page images for multimodal…");
+        console.log("[4/7] Generating page images for multimodal…");
         let pageImages: { mimeType: string; data: string }[] | null = null;
         try {
           pageImages = await pdfToImages(file, 8, 768);
-          console.log(`[3/6] Done. ${pageImages?.length ?? 0} page images.`);
+          console.log(`[4/7] Done. ${pageImages?.length ?? 0} page images.`);
         } catch (err) {
-          console.warn("[3/6] Page image generation failed (non-blocking):", err);
+          console.warn("[4/7] Page image generation failed (non-blocking):", err);
         }
 
-        console.log("[4/6] Running Gemini 4-layer pipeline…");
+        console.log("[5/7] Running Gemini 4-layer pipeline…");
         try {
           const geminiLayers = await runGeminiPipeline(text, heuristic, pageImages);
           result = mergeGeminiResults(heuristic, geminiLayers as { layer1: Record<string, unknown>; layer2: Record<string, unknown>; layer3: Record<string, unknown>; layer4: Record<string, unknown> });
-          console.log("[4/6] Gemini analysis complete. Trust score:", result.overall_trust_score);
+          console.log("[5/7] Gemini analysis complete. Trust score:", result.overall_trust_score);
         } catch (err) {
-          console.error("[4/6] Gemini pipeline failed, falling back to heuristic:", err);
+          console.error("[5/7] Gemini pipeline failed, falling back to heuristic:", err);
           result = await analyzeDocument(text);
-          console.log("[4/6] Heuristic fallback complete. Trust score:", result.overall_trust_score);
+          console.log("[5/7] Heuristic fallback complete. Trust score:", result.overall_trust_score);
         }
       } else {
         // ── Heuristic only (no API key) ─────────────────────────────
-        console.log("[2/6] Running heuristic analysis (Gemini not configured)…");
+        console.log("[3/7] Running heuristic analysis (Gemini not configured)…");
         result = await analyzeDocument(text);
-        console.log("[2/6] Done. Trust score:", result.overall_trust_score);
+        console.log("[3/7] Done. Trust score:", result.overall_trust_score);
       }
 
-      console.log("[5/6] Saving to Firestore…");
+      console.log("[6/7] Saving to Firestore…");
       const id = await saveAnalysis({
         file_hash: hash,
         filename: file.name,
@@ -107,25 +214,25 @@ export default function HomePage() {
         file_type: file.type,
         analysis_result: result,
       });
-      console.log("[5/6] Done. Firestore doc ID:", id);
+      console.log("[6/7] Done. Firestore doc ID:", id);
 
       // Upload original file to Firebase Storage (best effort)
-      console.log("[5.5/6] Uploading file to Storage…");
+      console.log("[6.5/7] Uploading file to Storage…");
       try {
         await uploadFile(id, file);
-        console.log("[5.5/6] Done.");
+        console.log("[6.5/7] Done.");
       } catch (err) {
-        console.warn("[5.5/6] Storage upload failed (non-blocking):", err);
+        console.warn("[6.5/7] Storage upload failed (non-blocking):", err);
       }
 
       // Refresh the list from Firestore
-      console.log("[6/6] Refreshing recent analyses…");
+      console.log("[7/7] Refreshing recent analyses…");
       try {
         const analyses = await getAllAnalyses(20);
         setRecentAnalyses(analyses);
-        console.log("[6/6] Done. Count:", analyses.length);
+        console.log("[7/7] Done. Count:", analyses.length);
       } catch {
-        console.warn("[6/6] Refresh failed (non-blocking)");
+        console.warn("[7/7] Refresh failed (non-blocking)");
       }
 
       return id;
@@ -188,12 +295,13 @@ export default function HomePage() {
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-zinc-100 via-blue-200 to-blue-400 bg-clip-text text-transparent">
             Forensic Intelligence for
             <br />
-            Every Business Document
+            Technology Vendor &amp; Advisory Documents
           </h2>
           <p className="mt-4 text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-            Upload proposals, whitepapers, and strategic documents for a comprehensive
-            multi-dimensional analysis across 5 decision modules, content forensics,
-            bias detection, and implementation readiness scoring.
+            Upload consulting proposals, vendor pitches, training brochures, whitepapers,
+            and advisory decks on AI, Data, Agentic AI, Cloud, and Digital Transformation.
+            Our AI forensic engine detects manipulation, bias, fluff, obsolescence, and
+            hidden commercial motives — so you read what matters, not what sells.
           </p>
         </div>
 
@@ -328,6 +436,14 @@ export default function HomePage() {
           <p>5 Decision Modules &bull; Content Forensics &bull; Bias Detection</p>
         </div>
       </footer>
+
+      {/* ── Rejection Modal ─────────────────────────────────────── */}
+      {rejectionModal && (
+        <RejectionModal
+          fitness={rejectionModal}
+          onClose={() => setRejectionModal(null)}
+        />
+      )}
     </div>
   );
 }

@@ -649,6 +649,13 @@ export const GLOSSARY: GlossaryEntry[] = [
     calculation: "Layer 1: 0.1 (factual). Layer 2: 0.2 (informed judgment). Layer 3: 0.25 (classification). Layer 4: 0.3 (creative synthesis).",
   },
   {
+    term: "Document Fitness Check",
+    category: "Methodology",
+    meaning: "Before analysis begins, Gemini performs a quick classification of the uploaded document to verify it falls within DocDetector's scope: technology vendor and advisory documents (consulting proposals, vendor pitches, training brochures, whitepapers, advisory decks) in the domains of AI, Data, Cloud, Digital Transformation, and Governance.",
+    importance: "Prevents wasted analysis time and misleading results on documents the engine was not designed for, such as legal contracts, financial reports, HR policies, or academic papers.",
+    calculation: "Gemini Layer 0 (pre-analysis): First ~5000 characters are sent to Gemini with a classification prompt. Returns fit/not-fit, document type, domain, and reason. If not fit, a rejection popup is shown and no report is generated. If the check itself fails, the document is allowed through.",
+  },
+  {
     term: "Heuristic Fallback",
     category: "Methodology",
     meaning: "When Gemini AI is unavailable (no API key, rate limit, or API error), the system automatically falls back to a fully heuristic analysis engine.",

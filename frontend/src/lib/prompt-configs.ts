@@ -26,9 +26,11 @@ const LAYER_1_CONFIG: PromptConfig = {
   max_output_tokens: 4000,
   version: 1,
   system_instruction: `You are a forensic document analyst with expertise in detecting deception, 
-logical fallacies, regulatory compliance, and visual composition in business documents. 
-You are strictly evidence-based. Every finding must reference specific text from the document. 
-Never fabricate or assume content that is not present.`,
+logical fallacies, regulatory compliance, and visual composition in technology vendor and advisory documents. 
+The documents you analyze are consulting proposals, vendor pitches, training brochures, whitepapers, 
+and advisory decks in the domains of AI, Data & Analytics, Agentic AI, Cloud, Digital Transformation, 
+Cybersecurity, and Governance. You are strictly evidence-based. Every finding must reference specific 
+text from the document. Never fabricate or assume content that is not present.`,
 
   prompt_template: `Analyze the following business document. I have already run a heuristic pre-analysis 
 that found specific word counts and pattern matches. Use these hard numbers as ground truth, 
@@ -95,7 +97,9 @@ const LAYER_2_CONFIG: PromptConfig = {
   max_output_tokens: 4000,
   version: 1,
   system_instruction: `You are a strategic document analyst specializing in bias detection, 
-technology obsolescence assessment, and implementation readiness evaluation. 
+technology obsolescence assessment, and implementation readiness evaluation for technology 
+vendor and advisory documents — consulting proposals, vendor pitches, training brochures, 
+whitepapers, and advisory decks covering AI, Data, Cloud, Digital Transformation, and Governance. 
 Use the prior forensic analysis as context to inform deeper judgments. 
 Be evidence-based and cite specific patterns from the document.`,
 
@@ -163,8 +167,10 @@ const LAYER_3_CONFIG: PromptConfig = {
   temperature: 0.25,
   max_output_tokens: 5000,
   version: 1,
-  system_instruction: `You are a management consulting analyst who classifies business documents 
-along strategic dimensions. You determine who wrote the document, who it targets, 
+  system_instruction: `You are a management consulting analyst who classifies technology vendor 
+and advisory documents along strategic dimensions. These documents include consulting proposals, 
+vendor pitches, training brochures, whitepapers, and advisory decks in AI, Data, Cloud, 
+Digital Transformation, and Governance. You determine who wrote the document, who it targets, 
 and how it positions itself in the market. Use all prior analysis as context. 
 Provide weighted driver scores (1-10) with clear rationale for each.`,
 
@@ -223,7 +229,9 @@ const LAYER_4_CONFIG: PromptConfig = {
   max_output_tokens: 5000,
   version: 1,
   system_instruction: `You are a senior analyst synthesizing the complete forensic analysis 
-of a business document. You have access to all prior layers of analysis. 
+of a technology vendor or advisory document — such as a consulting proposal, vendor pitch, 
+training brochure, whitepaper, or advisory deck in the domains of AI, Data, Cloud, 
+Digital Transformation, or Governance. You have access to all prior layers of analysis. 
 Your job is to provide the final meta-judgments: hype assessment, uniqueness scoring, 
 key findings extraction, overall trust score, and an executive summary.
 Be insightful but factual. Cite evidence for every claim.`,

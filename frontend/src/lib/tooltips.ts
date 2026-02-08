@@ -6,6 +6,8 @@
 
 export const TOOLTIPS = {
   // ── Overall ──────────────────────────────────────────────────────────────
+  platform_scope:
+    "DocDetector specializes in technology vendor & advisory documents: consulting proposals, vendor pitches, training brochures, whitepapers, and advisory decks on AI, Data, Cloud, Digital Transformation, and Governance. Documents outside this scope are detected and rejected before analysis.",
   overall_trust_score:
     "AI-generated composite score (0-100) synthesizing all analysis modules. Gemini evaluates forensics, readiness, obsolescence, hype, bias, and strategic positioning to produce a holistic trust rating.",
   file_hash:

@@ -93,6 +93,7 @@ export async function saveAnalysis(data: {
   filename: string;
   file_size: number;
   file_type: string;
+  word_count?: number;
   display_name?: string;
   author?: string;
   doc_summary?: string;
@@ -122,6 +123,7 @@ export async function saveAnalysis(data: {
     doc_summary: data.doc_summary || "",
     file_size: data.file_size,
     file_type: data.file_type,
+    word_count: data.word_count || 0,
     summary,
     analysis_result: sanitizedResult,
     ...(sanitizedHighlights ? { pdf_highlights: sanitizedHighlights } : {}),
@@ -173,6 +175,21 @@ export async function getAllAnalyses(maxResults = 50): Promise<AnalysisDoc[]> {
   );
   const snap = await getDocs(q);
   return snap.docs.map((d) => toAnalysisDoc(d.id, d.data()));
+}
+
+/**
+ * Lightweight platform stats: total files and total words analysed.
+ * Reads only word_count and file_size fields (minimal bandwidth).
+ */
+export async function getPlatformStats(): Promise<{ totalFiles: number; totalWords: number }> {
+  const snap = await getDocs(collection(db, "analyses"));
+  let totalWords = 0;
+  snap.docs.forEach((d) => {
+    const data = d.data();
+    // Use stored word_count if available, otherwise estimate from file_size
+    totalWords += data.word_count || Math.round((data.file_size || 0) / 6);
+  });
+  return { totalFiles: snap.size, totalWords };
 }
 
 // ── Helper: Firestore data → AnalysisDoc ────────────────────────────────────

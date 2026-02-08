@@ -13,9 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DocDetector — Lie Detector for Business Documents",
+  title: "DocDetector — AI Forensic Analyst for Business Documents",
   description:
-    "Upload business documents and get an AI-powered forensic analysis for vendor bias, buzzword fluff, and actionability.",
+    "Upload consulting proposals, vendor pitches, whitepapers, and advisory decks. Get AI-powered forensic analysis across 5 decision modules — detecting manipulation, bias, fluff, obsolescence, and hidden commercial motives.",
+  icons: {
+    icon: { url: "/icon-32.svg", type: "image/svg+xml" },
+  },
+  openGraph: {
+    title: "DocDetector — AI Forensic Analyst for Business Documents",
+    description:
+      "Upload consulting proposals, vendor pitches, whitepapers, and advisory decks. AI forensic analysis across 5 decision modules, 25 weighted drivers, and content forensics.",
+    siteName: "DocDetector",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

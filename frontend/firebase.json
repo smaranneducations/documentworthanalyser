@@ -5,7 +5,7 @@
     "rewrites": [
       {
         "source": "/report/**",
-        "destination": "/report/_/index.html"
+        "destination": "/report/placeholder/index.html"
       },
       {
         "source": "/glossary/**",

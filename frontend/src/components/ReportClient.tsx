@@ -334,7 +334,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
               className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100 transition-colors"
             >
               <Printer className="h-3.5 w-3.5 text-emerald-400" />
-              Print to PDF
+              Print Summary Report
             </button>
           </div>
         </div>

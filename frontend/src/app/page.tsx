@@ -24,6 +24,7 @@ import {
   checkFileHash,
   uploadFile,
   getAllDocSummaries,
+  getPlatformStats,
 } from "@/lib/firebase";
 import { findFuzzyMatches } from "@/lib/fuzzy-match";
 import type { MatchInfo } from "@/components/UploadGatekeeper";
@@ -245,14 +246,18 @@ export default function HomePage() {
   const [recentAnalyses, setRecentAnalyses] = useState<AnalysisDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectionModal, setRejectionModal] = useState<FitnessResult | null>(null);
+  const [platformStats, setPlatformStats] = useState({ totalFiles: 0, totalWords: 0 });
 
-  // Load analyses from Firestore on mount
+  // Load analyses + platform stats from Firestore on mount
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const analyses = await getAllAnalyses(20);
-        if (!cancelled) setRecentAnalyses(analyses);
+        const [analyses, stats] = await Promise.all([getAllAnalyses(20), getPlatformStats()]);
+        if (!cancelled) {
+          setRecentAnalyses(analyses);
+          setPlatformStats(stats);
+        }
       } catch (err) {
         console.error("Failed to load analyses:", err);
       } finally {
@@ -353,12 +358,14 @@ export default function HomePage() {
 
       let result;
       let pdfHighlightsRaw: unknown = null;
+      let wordCount = 0;
 
       if (useGemini) {
         // ── Hybrid: Heuristic pre-pass + Gemini layers ──────────────
         console.log("[3/7] Running heuristic pre-pass…");
         const heuristic = runHeuristicPrePass(text);
-        console.log("[3/7] Done. Word count:", heuristic.word_count);
+        wordCount = heuristic.word_count;
+        console.log("[3/7] Done. Word count:", wordCount);
 
         console.log("[4/7] Generating page images for multimodal…");
         let pageImages: { mimeType: string; data: string }[] | null = null;
@@ -384,6 +391,7 @@ export default function HomePage() {
         // ── Heuristic only (no API key) ─────────────────────────────
         console.log("[3/7] Running heuristic analysis (Gemini not configured)…");
         result = await analyzeDocument(text);
+        wordCount = text.split(/\s+/).filter(Boolean).length;
         console.log("[3/7] Done. Trust score:", result.overall_trust_score);
       }
 
@@ -393,6 +401,7 @@ export default function HomePage() {
         filename: file.name,
         file_size: file.size,
         file_type: file.type,
+        word_count: wordCount,
         display_name: docMetadata.display_name,
         author: docMetadata.author,
         doc_summary: docMetadata.summary,
@@ -466,9 +475,9 @@ export default function HomePage() {
               <BookOpen className="h-3.5 w-3.5 text-blue-400" />
               Assessment Rules
             </Link>
-            <span className="flex items-center gap-2 text-xs text-zinc-600">
+            <span className="flex items-center gap-2 text-xs text-zinc-500">
               <Sparkles className="h-3.5 w-3.5" />
-              Multi-Dimensional Analysis Engine
+              5-Layer AI Pipeline
             </span>
           </div>
         </div>
@@ -488,6 +497,23 @@ export default function HomePage() {
             Our AI forensic engine detects manipulation, bias, fluff, obsolescence, and
             hidden commercial motives — so you read what matters, not what sells.
           </p>
+        </div>
+
+        {/* ── Platform Stats Cards ──────────────────────────────── */}
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-12 max-w-4xl mx-auto">
+          {[
+            { value: "5", label: "Decision Modules" },
+            { value: "25", label: "Weighted Drivers" },
+            { value: "15+", label: "Forensic Checks" },
+            { value: "5", label: "AI Layers" },
+            { value: platformStats.totalFiles > 0 ? platformStats.totalFiles.toLocaleString() : "—", label: "Files Analysed" },
+            { value: platformStats.totalWords > 0 ? (platformStats.totalWords > 999 ? `${Math.round(platformStats.totalWords / 1000)}K` : platformStats.totalWords.toLocaleString()) : "—", label: "Words Analysed" },
+          ].map((stat, i) => (
+            <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-4 text-center">
+              <span className="block text-2xl md:text-3xl font-black text-zinc-100">{stat.value}</span>
+              <span className="block text-[10px] md:text-xs font-semibold text-zinc-500 uppercase tracking-wider mt-1">{stat.label}</span>
+            </div>
+          ))}
         </div>
 
         {/* ── Feature Pills ──────────────────────────────────────── */}

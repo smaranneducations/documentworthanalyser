@@ -9,9 +9,11 @@ Upload any business document (consulting proposal, vendor pitch, whitepaper, adv
 ## Key Features
 
 - **Upload & Analyze** — Drop a PDF, DOCX, or TXT file. Get a full forensic report in under 30 seconds.
+- **Document Fitness Check** — Only business/technology documents are accepted (proposals, pitches, whitepapers, advisory decks). If you upload something unrelated (a recipe, novel, personal letter, etc.), the app rejects it with an explanation of why it doesn't qualify.
 - **Trust Score** — Every document gets a 0–100 trust score based on 25+ weighted drivers.
 - **5-Layer AI Analysis** — Deception detection, bias analysis, logical fallacy identification, obsolescence risk, implementation readiness, hype vs reality, and more.
 - **Key Findings** — AI highlights the most surprising or concerning facts from the document.
+- **"Show Only My Files" Toggle** — When logged in, filter the home page file list to show only the documents you uploaded.
 - **Print Summary** — Generate a styled PDF highlight reel to share with your team.
 - **Assessment Rules Glossary** — Every metric is explained — what it means, why it matters, how it's calculated.
 

@@ -7,7 +7,7 @@ import {
   FileText, ArrowRight, TrendingUp, Eye, Sparkles,
   BarChart3, Brain, Search, Users, Zap, Loader2, BookOpen,
   Play, FileText as ReadIcon, AlertTriangle, X, MessageSquare,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, HelpCircle,
 } from "lucide-react";
 import UploadGatekeeper from "@/components/UploadGatekeeper";
 import HelpTooltip from "@/components/HelpTooltip";
@@ -29,6 +29,7 @@ import {
 import { findFuzzyMatches } from "@/lib/fuzzy-match";
 import type { MatchInfo } from "@/components/UploadGatekeeper";
 import UserMenu from "@/components/UserMenu";
+import UserGuideModal from "@/components/UserGuideModal";
 import { useAuth } from "@/lib/auth";
 
 // ── Rejection Modal ─────────────────────────────────────────────────────
@@ -251,6 +252,7 @@ export default function HomePage() {
   const [rejectionModal, setRejectionModal] = useState<FitnessResult | null>(null);
   const [platformStats, setPlatformStats] = useState({ totalFiles: 0, totalWords: 0 });
   const [showOnlyMine, setShowOnlyMine] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   // Load analyses + platform stats from Firestore (re-run when auth state changes)
   useEffect(() => {
@@ -606,6 +608,13 @@ export default function HomePage() {
             <ReadIcon className="h-4 w-4" />
             Read <span className="text-zinc-500">4 min</span>
           </a>
+          <button
+            onClick={() => setShowGuide(true)}
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/60 px-4 py-2 text-sm text-blue-400 hover:bg-zinc-800 hover:text-blue-300 transition-colors cursor-pointer"
+          >
+            <HelpCircle className="h-4 w-4" />
+            User Guide
+          </button>
         </div>
 
         {/* ── "Show only my files" toggle ──────────────────────── */}
@@ -653,6 +662,9 @@ export default function HomePage() {
           onClose={() => setRejectionModal(null)}
         />
       )}
+
+      {/* ── User Guide Modal ──────────────────────────────────────── */}
+      {showGuide && <UserGuideModal onClose={() => setShowGuide(false)} />}
     </div>
   );
 }

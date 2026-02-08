@@ -38,6 +38,9 @@ interface StoredAnalysis {
   id: string;
   file_hash: string;
   filename: string;
+  display_name?: string;
+  author?: string;
+  doc_summary?: string;
   uploaded_at: string; // ISO string
   analysis_result: AnalysisResult;
 }
@@ -65,6 +68,9 @@ interface StoredComment {
 function toDomain(stored: StoredAnalysis): AnalysisDoc {
   return {
     ...stored,
+    display_name: stored.display_name ?? "",
+    author: stored.author ?? "",
+    doc_summary: stored.doc_summary ?? "",
     uploaded_at: new Date(stored.uploaded_at),
   };
 }

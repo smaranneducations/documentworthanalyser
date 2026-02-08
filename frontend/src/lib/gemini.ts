@@ -205,6 +205,9 @@ export interface FitnessResult {
   document_type: string;
   document_domain: string;
   reason: string;
+  display_name: string;
+  author: string;
+  summary: string;
 }
 
 export async function checkDocumentFitness(
@@ -215,8 +218,9 @@ export async function checkDocumentFitness(
   // Only send first ~5000 chars for a quick check
   const snippet = documentText.slice(0, 5000);
 
-  const prompt = `You are a document classifier. Your ONLY job is to determine whether the following document
-is suitable for analysis by a forensic engine that specializes in **technology vendor and advisory documents**.
+  const prompt = `You are a document classifier and metadata extractor. You have TWO jobs:
+
+JOB 1 — CLASSIFICATION: Determine whether the following document is suitable for analysis by a forensic engine that specializes in **technology vendor and advisory documents**.
 
 SUITABLE document types:
 - Consulting proposals and sales pitches
@@ -245,24 +249,32 @@ NOT SUITABLE (examples):
 - Government legislation, court filings
 - Fiction, creative writing
 
+JOB 2 — METADATA EXTRACTION: Regardless of fitness, extract the following:
+- **display_name**: The actual title of the document as it would appear on a cover page or header. NOT the filename. Look for headings, title pages, cover text. If no clear title, create a concise descriptive title from the content (e.g. "AI Transformation Strategy for Enterprise Retail").
+- **author**: The organization or person who authored/published the document. Look for company logos mentioned, "prepared by", copyright notices, letterheads. If unclear, use "Unknown".
+- **summary**: A 1-2 sentence summary of what the document is about and its purpose.
+
 === DOCUMENT SNIPPET (first ~5000 chars) ===
 ${snippet}
 
 Respond with ONLY valid JSON:
 {
   "fit": true/false,
-  "document_type": "brief description of what this document is, e.g. 'AI consulting proposal', 'cloud migration whitepaper'",
-  "document_domain": "the domain, e.g. 'AI & Data Analytics', 'Cloud Computing'",
-  "reason": "one sentence explaining why it is or isn't suitable"
+  "document_type": "brief description, e.g. 'AI consulting proposal'",
+  "document_domain": "the domain, e.g. 'AI & Data Analytics'",
+  "reason": "one sentence explaining why it is or isn't suitable",
+  "display_name": "The actual document title extracted from content",
+  "author": "Organization or person who authored it",
+  "summary": "1-2 sentence summary of the document"
 }`;
 
   const response = await client.models.generateContent({
     model: "gemini-2.0-flash",
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: {
-      systemInstruction: "You are a document classifier. Return only valid JSON. Be strict but fair — if the document is even partially about technology vendor services, advisory, or training in the listed domains, mark it as fit.",
+      systemInstruction: "You are a document classifier and metadata extractor. Return only valid JSON. Be strict but fair on fitness — if the document is even partially about technology vendor services, advisory, or training in the listed domains, mark it as fit. Always extract display_name, author, and summary regardless of fitness.",
       temperature: 0.05,
-      maxOutputTokens: 500,
+      maxOutputTokens: 800,
     },
   });
 
@@ -277,7 +289,7 @@ Respond with ONLY valid JSON:
   } catch {
     console.warn("[Gemini] Fitness check JSON parse failed, allowing document:", text.slice(0, 300));
     // If parsing fails, let the document through rather than blocking
-    return { fit: true, document_type: "Unknown", document_domain: "Unknown", reason: "Fitness check inconclusive — allowing analysis." };
+    return { fit: true, document_type: "Unknown", document_domain: "Unknown", reason: "Fitness check inconclusive — allowing analysis.", display_name: "", author: "", summary: "" };
   }
 }
 

@@ -212,6 +212,9 @@ export interface AnalysisDoc {
   id: string;
   file_hash: string;
   filename: string;
+  display_name: string;       // AI-extracted document title
+  author: string;             // AI-extracted author/organization
+  doc_summary: string;        // AI-extracted 1-2 sentence summary
   uploaded_at: Date;
   analysis_result: AnalysisResult;
 }

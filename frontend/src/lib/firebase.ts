@@ -93,6 +93,9 @@ export async function saveAnalysis(data: {
   filename: string;
   file_size: number;
   file_type: string;
+  display_name?: string;
+  author?: string;
+  doc_summary?: string;
   analysis_result: AnalysisResult;
 }): Promise<string> {
   console.log("[Firestore] saveAnalysis: writing document…");
@@ -108,6 +111,9 @@ export async function saveAnalysis(data: {
   const payload = {
     file_hash: data.file_hash,
     filename: data.filename,
+    display_name: data.display_name || "",
+    author: data.author || "",
+    doc_summary: data.doc_summary || "",
     file_size: data.file_size,
     file_type: data.file_type,
     summary,
@@ -169,9 +175,28 @@ function toAnalysisDoc(id: string, data: any): AnalysisDoc {
     id,
     file_hash: data.file_hash ?? "",
     filename: data.filename ?? "",
+    display_name: data.display_name ?? "",
+    author: data.author ?? "",
+    doc_summary: data.doc_summary ?? "",
     uploaded_at: data.uploaded_at?.toDate?.() ?? new Date(),
     analysis_result: data.analysis_result,
   };
+}
+
+/**
+ * Find analyses with a matching display_name (case-insensitive via Firestore).
+ * Returns up to 5 matches. Non-blocking — used for "similar document" suggestions.
+ */
+export async function findByDisplayName(displayName: string): Promise<AnalysisDoc[]> {
+  if (!displayName) return [];
+  const q = query(
+    collection(db, "analyses"),
+    where("display_name", "==", displayName),
+    orderBy("uploaded_at", "desc"),
+    limit(5)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => toAnalysisDoc(d.id, d.data()));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

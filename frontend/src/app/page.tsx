@@ -23,6 +23,7 @@ import {
   getAllAnalyses,
   checkFileHash,
   uploadFile,
+  findByDisplayName,
 } from "@/lib/firebase";
 
 // ── Rejection Modal ─────────────────────────────────────────────────────
@@ -158,17 +159,21 @@ function PreviouslyAssessed({
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-zinc-200 truncate group-hover:text-blue-400 transition-colors">
-                {latest.filename}
+              <p className="text-sm font-semibold text-zinc-200 truncate group-hover:text-blue-400 transition-colors">
+                {latest.display_name || latest.filename}
               </p>
+              {latest.author && (
+                <p className="text-xs text-zinc-400 truncate">{latest.author}</p>
+              )}
+              {latest.display_name && (
+                <p className="text-[11px] text-zinc-600 font-mono truncate">{latest.filename}</p>
+              )}
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-xs text-zinc-600">
                   {latest.uploaded_at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                 </span>
                 <span className="text-zinc-800">&middot;</span>
                 <span className="text-xs text-zinc-500">{latestResult.provider_consumer.classification}</span>
-                <span className="text-zinc-800">&middot;</span>
-                <span className="text-xs text-zinc-500">{latestResult.audience_level.classification}</span>
               </div>
             </div>
             <ArrowRight className="h-4 w-4 text-zinc-700 group-hover:text-blue-400 transition-colors shrink-0" />
@@ -204,12 +209,20 @@ function PreviouslyAssessed({
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-zinc-300 truncate group-hover:text-blue-400 transition-colors">
-                            {a.filename}
+                          <p className="text-sm font-medium text-zinc-300 truncate group-hover:text-blue-400 transition-colors">
+                            {a.display_name || a.filename}
                           </p>
-                          <span className="text-xs text-zinc-600">
-                            {a.uploaded_at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                          </span>
+                          {a.author && (
+                            <p className="text-xs text-zinc-500 truncate">{a.author}</p>
+                          )}
+                          <div className="flex items-center gap-2">
+                            {a.display_name && (
+                              <span className="text-[11px] text-zinc-600 font-mono truncate max-w-[150px]">{a.filename}</span>
+                            )}
+                            <span className="text-xs text-zinc-600">
+                              {a.uploaded_at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                            </span>
+                          </div>
                         </div>
                         <ArrowRight className="h-3.5 w-3.5 text-zinc-700 group-hover:text-blue-400 transition-colors shrink-0" />
                       </div>
@@ -230,6 +243,8 @@ export default function HomePage() {
   const [recentAnalyses, setRecentAnalyses] = useState<AnalysisDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectionModal, setRejectionModal] = useState<FitnessResult | null>(null);
+  const [similarDocs, setSimilarDocs] = useState<AnalysisDoc[]>([]);
+  const [pendingAnalysis, setPendingAnalysis] = useState<{ file: File; hash: string; metadata: FitnessResult } | null>(null);
 
   // Load analyses from Firestore on mount
   useEffect(() => {
@@ -259,6 +274,9 @@ export default function HomePage() {
     return null;
   }, []);
 
+  // Ref to hold fitness metadata across the pipeline
+  const fitnessMetaRef = useCallback(() => ({ current: null as FitnessResult | null }), [])();
+
   const handleAnalyze = useCallback(
     async (file: File, hash: string): Promise<string> => {
       const useGemini = isGeminiAvailable();
@@ -268,16 +286,46 @@ export default function HomePage() {
       const text = await extractText(file);
       console.log("[1/7] Done. Text length:", text.length);
 
-      // ── Document fitness check (Layer 0) ──────────────────────────
+      // ── Document fitness check + metadata extraction (Layer 0) ────
+      let docMetadata: { display_name: string; author: string; summary: string } = {
+        display_name: "", author: "", summary: "",
+      };
+
       if (useGemini) {
-        console.log("[2/7] Checking document fitness…");
+        console.log("[2/7] Checking document fitness & extracting metadata…");
         try {
           const fitness = await checkDocumentFitness(text);
           console.log("[2/7] Fitness result:", fitness);
+
+          // Capture metadata regardless of fitness
+          docMetadata = {
+            display_name: fitness.display_name || "",
+            author: fitness.author || "",
+            summary: fitness.summary || "",
+          };
+          fitnessMetaRef.current = fitness;
+
           if (!fitness.fit) {
             setRejectionModal(fitness);
             throw new Error("DOCUMENT_NOT_FIT");
           }
+
+          // ── Non-blocking: check for similar documents by display name ──
+          if (docMetadata.display_name) {
+            console.log("[2.5/7] Checking for similar documents by display name…");
+            try {
+              const similar = await findByDisplayName(docMetadata.display_name);
+              if (similar.length > 0) {
+                console.log(`[2.5/7] Found ${similar.length} similar document(s). Showing panel (non-blocking).`);
+                setSimilarDocs(similar);
+                setPendingAnalysis({ file, hash, metadata: fitness });
+                // Non-blocking — we continue with analysis anyway
+              }
+            } catch (err) {
+              console.warn("[2.5/7] Similar doc check failed (non-blocking):", err);
+            }
+          }
+
           console.log("[2/7] Document is suitable. Proceeding.");
         } catch (err) {
           if ((err as Error).message === "DOCUMENT_NOT_FIT") throw err;
@@ -326,6 +374,9 @@ export default function HomePage() {
         filename: file.name,
         file_size: file.size,
         file_type: file.type,
+        display_name: docMetadata.display_name,
+        author: docMetadata.author,
+        doc_summary: docMetadata.summary,
         analysis_result: result,
       });
       console.log("[6/7] Done. Firestore doc ID:", id);
@@ -349,9 +400,13 @@ export default function HomePage() {
         console.warn("[7/7] Refresh failed (non-blocking)");
       }
 
+      // Clear similar docs panel once analysis is done
+      setSimilarDocs([]);
+      setPendingAnalysis(null);
+
       return id;
     },
-    []
+    [fitnessMetaRef]
   );
 
   const handleViewReport = useCallback(
@@ -488,6 +543,44 @@ export default function HomePage() {
             Read <span className="text-zinc-500">4 min</span>
           </a>
         </div>
+
+        {/* ── Similar Documents Found (non-blocking) ────────── */}
+        {similarDocs.length > 0 && pendingAnalysis && (
+          <div className="mb-10 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-200">Similar documents already assessed</h3>
+                <p className="text-xs text-zinc-500">Documents with the same title were found. Analysis is continuing — this is just a heads-up.</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {similarDocs.map((doc) => (
+                <button
+                  key={doc.id}
+                  onClick={() => router.push(`/report/${doc.id}`)}
+                  className="group w-full rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:border-zinc-700 hover:bg-zinc-900 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`shrink-0 rounded-lg ${getScoreBg(doc.analysis_result.overall_trust_score)} px-2 py-1`}>
+                      <span className={`text-sm font-bold ${getScoreColor(doc.analysis_result.overall_trust_score)}`}>
+                        {doc.analysis_result.overall_trust_score}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-zinc-200 truncate group-hover:text-blue-400 transition-colors">
+                        {doc.display_name || doc.filename}
+                      </p>
+                      {doc.author && <p className="text-xs text-zinc-400">{doc.author}</p>}
+                      <p className="text-[11px] text-zinc-600 font-mono truncate">{doc.filename}</p>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-zinc-700 group-hover:text-blue-400 transition-colors shrink-0" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Previously Assessed (collapsed) ─────────────────── */}
         <PreviouslyAssessed

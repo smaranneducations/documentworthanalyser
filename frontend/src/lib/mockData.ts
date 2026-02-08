@@ -318,6 +318,9 @@ export const mockAnalysis: AnalysisDoc = {
   id: "mock-analysis-001",
   file_hash: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
   filename: "Q4_Cloud_Migration_Proposal.pdf",
+  display_name: "Q4 Enterprise Cloud Migration Strategy",
+  author: "Accenture Cloud First",
+  doc_summary: "A consulting proposal outlining a phased cloud migration strategy for enterprise workloads across AWS and Azure.",
   uploaded_at: new Date("2026-02-06T14:30:00Z"),
   analysis_result: sampleResult1,
 };
@@ -326,6 +329,9 @@ export const mockAnalysis2: AnalysisDoc = {
   id: "mock-analysis-002",
   file_hash: "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
   filename: "Annual_Security_Audit_Report.pdf",
+  display_name: "Annual Security Audit & Compliance Report",
+  author: "Deloitte Cyber",
+  doc_summary: "A comprehensive security audit covering infrastructure vulnerabilities, compliance gaps, and remediation recommendations.",
   uploaded_at: new Date("2026-02-05T09:15:00Z"),
   analysis_result: sampleResult2,
 };

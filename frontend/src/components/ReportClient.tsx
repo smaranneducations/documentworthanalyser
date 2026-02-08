@@ -245,7 +245,12 @@ export default function ReportClient({ id: propId }: { id: string }) {
           </button>
           <div className="flex items-center gap-3 text-sm text-zinc-500">
             <FileText className="h-4 w-4" />
-            <span className="font-medium text-zinc-300">{analysis.filename}</span>
+            <div className="flex flex-col">
+              <span className="font-medium text-zinc-300 leading-tight">{analysis.display_name || analysis.filename}</span>
+              {analysis.display_name && (
+                <span className="text-[11px] text-zinc-600 font-mono leading-tight">{analysis.filename}</span>
+              )}
+            </div>
             <span className="text-zinc-700">|</span>
             <Calendar className="h-4 w-4" />
             {analysis.uploaded_at.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
@@ -269,7 +274,15 @@ export default function ReportClient({ id: propId }: { id: string }) {
           <div className="mb-12 flex flex-col lg:flex-row items-center gap-8 print-no-break">
             <div className="flex-1">
               <p className="text-sm uppercase tracking-widest text-blue-400 font-semibold mb-3">Document Analysis Report</p>
-              <h1 className="text-4xl lg:text-5xl font-bold tracking-tight leading-tight">{analysis.filename}</h1>
+              <h1 className="text-4xl lg:text-5xl font-bold tracking-tight leading-tight">
+                {analysis.display_name || analysis.filename}
+              </h1>
+              {analysis.author && (
+                <p className="mt-2 text-base text-zinc-400">{analysis.author}</p>
+              )}
+              {analysis.display_name && (
+                <p className="mt-1 text-xs text-zinc-600 font-mono">{analysis.filename}</p>
+              )}
               <p className="mt-4 text-lg text-zinc-400 leading-relaxed max-w-3xl">{r.summary}</p>
               <div className="mt-4 flex items-center gap-4 text-xs text-zinc-600">
                 <HelpTooltip text={tip("file_hash")} position="right">

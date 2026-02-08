@@ -184,19 +184,38 @@ function toAnalysisDoc(id: string, data: any): AnalysisDoc {
 }
 
 /**
- * Find analyses with a matching display_name (case-insensitive via Firestore).
- * Returns up to 5 matches. Non-blocking — used for "similar document" suggestions.
+ * Lightweight query: fetch just id, display_name, author, doc_summary, filename, trust_score, uploaded_at
+ * for ALL analyses. Used for client-side fuzzy matching.
+ * At ~2000 docs this is very fast — only reads summary fields.
  */
-export async function findByDisplayName(displayName: string): Promise<AnalysisDoc[]> {
-  if (!displayName) return [];
+export async function getAllDocSummaries(): Promise<{
+  id: string;
+  display_name: string;
+  author: string;
+  doc_summary: string;
+  filename: string;
+  trust_score: number;
+  uploaded_at: Date;
+}[]> {
   const q = query(
     collection(db, "analyses"),
-    where("display_name", "==", displayName),
     orderBy("uploaded_at", "desc"),
-    limit(5)
+    limit(2000)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => toAnalysisDoc(d.id, d.data()));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      display_name: data.display_name ?? "",
+      author: data.author ?? "",
+      doc_summary: data.doc_summary ?? "",
+      filename: data.filename ?? "",
+      trust_score: data.analysis_result?.overall_trust_score ?? 0,
+      uploaded_at: data.uploaded_at?.toDate?.() ?? new Date(),
+    };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

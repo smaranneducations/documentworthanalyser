@@ -9,26 +9,26 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
-  X,
   ArrowRight,
+  RotateCcw,
 } from "lucide-react";
+import type { FuzzyMatch } from "@/lib/fuzzy-match";
 
-interface DuplicateInfo {
-  id: string;
-  filename: string;
-  uploaded_at: Date;
+export interface MatchInfo {
+  exact: boolean; // true = same file hash, false = fuzzy name match
+  matches: FuzzyMatch[];
 }
 
 interface UploadGatekeeperProps {
-  /** Called after hashing to check for duplicates. Return null if new, or info if exists. */
-  onCheckHash: (hash: string) => Promise<DuplicateInfo | null>;
-  /** Called when the file is new and should be analyzed. Returns the report ID. */
+  /** Called after hashing. Returns exact + fuzzy matches (non-blocking info). */
+  onCheckHash: (hash: string) => Promise<MatchInfo | null>;
+  /** Called to analyze the file. Returns the report ID. */
   onAnalyze: (file: File, hash: string) => Promise<string>;
   /** Called when user wants to view an existing report. */
   onViewReport: (id: string) => void;
 }
 
-type Stage = "idle" | "hashing" | "checking" | "duplicate" | "uploading" | "done" | "error";
+type Stage = "idle" | "hashing" | "checking" | "matched" | "uploading" | "done" | "error";
 
 export default function UploadGatekeeper({
   onCheckHash,
@@ -37,7 +37,8 @@ export default function UploadGatekeeper({
 }: UploadGatekeeperProps) {
   const [stage, setStage] = useState<Stage>("idle");
   const [file, setFile] = useState<File | null>(null);
-  const [duplicate, setDuplicate] = useState<DuplicateInfo | null>(null);
+  const [fileHash, setFileHash] = useState<string>("");
+  const [matchInfo, setMatchInfo] = useState<MatchInfo | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
@@ -46,7 +47,8 @@ export default function UploadGatekeeper({
   const reset = () => {
     setStage("idle");
     setFile(null);
-    setDuplicate(null);
+    setFileHash("");
+    setMatchInfo(null);
     setErrorMsg("");
     setReportId(null);
   };
@@ -69,11 +71,35 @@ export default function UploadGatekeeper({
     });
   }, []);
 
+  /** Run the analysis pipeline */
+  const runAnalysis = useCallback(
+    async (f: File, hash: string) => {
+      setStage("uploading");
+      try {
+        const id = await onAnalyze(f, hash);
+        setReportId(id);
+        setStage("done");
+        setTimeout(() => onViewReport(id), 300);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg === "DOCUMENT_NOT_FIT") {
+          setStage("idle");
+          return;
+        }
+        setStage("error");
+        console.error("Analysis pipeline error:", err);
+        setErrorMsg(`Analysis failed: ${msg}`);
+      }
+    },
+    [onAnalyze, onViewReport]
+  );
+
   const processFile = useCallback(
     async (f: File) => {
       setFile(f);
       setErrorMsg("");
       setReportId(null);
+      setMatchInfo(null);
 
       // Validate file type
       const validTypes = [
@@ -93,48 +119,31 @@ export default function UploadGatekeeper({
       let hash: string;
       try {
         hash = await hashFile(f);
+        setFileHash(hash);
       } catch {
         setStage("error");
         setErrorMsg("Failed to compute file hash.");
         return;
       }
 
-      // Step 2: Check for duplicates
+      // Step 2: Check for matches
       setStage("checking");
       try {
-        const existing = await onCheckHash(hash);
-        if (existing) {
-          setDuplicate(existing);
-          setStage("duplicate");
+        const info = await onCheckHash(hash);
+        if (info && info.matches.length > 0) {
+          setMatchInfo(info);
+          // Pause here — let user decide
+          setStage("matched");
           return;
         }
       } catch {
-        console.warn("Hash check failed. Proceeding with analysis.");
+        console.warn("Match check failed. Proceeding with analysis.");
       }
 
-      // Step 3: Analyze
-      setStage("uploading");
-      try {
-        const id = await onAnalyze(f, hash);
-        // Store the ID for the fallback button
-        setReportId(id);
-        setStage("done");
-        // Navigate using the parent's handler — same code path as clicking recent analyses
-        // Small delay to let React commit the "done" state so user sees the success message
-        setTimeout(() => onViewReport(id), 300);
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        // If document was rejected by fitness check, silently reset (modal handles UX)
-        if (msg === "DOCUMENT_NOT_FIT") {
-          setStage("idle");
-          return;
-        }
-        setStage("error");
-        console.error("Analysis pipeline error:", err);
-        setErrorMsg(`Analysis failed: ${msg}`);
-      }
+      // Step 3: No matches — proceed directly
+      await runAnalysis(f, hash);
     },
-    [hashFile, onCheckHash, onAnalyze, onViewReport]
+    [hashFile, onCheckHash, runAnalysis]
   );
 
   const handleDrop = useCallback(
@@ -154,6 +163,18 @@ export default function UploadGatekeeper({
     },
     [processFile]
   );
+
+  const getScoreColor = (s: number) => {
+    if (s >= 70) return "text-emerald-400";
+    if (s >= 40) return "text-yellow-400";
+    return "text-red-400";
+  };
+
+  const getScoreBg = (s: number) => {
+    if (s >= 70) return "bg-emerald-500/10";
+    if (s >= 40) return "bg-yellow-500/10";
+    return "bg-red-500/10";
+  };
 
   return (
     <div className="w-full">
@@ -183,6 +204,7 @@ export default function UploadGatekeeper({
             accept=".pdf,.txt,.md,.docx"
             className="hidden"
             onChange={handleChange}
+            aria-label="Upload document"
           />
           <Upload className="mx-auto mb-2.5 h-8 w-8 text-zinc-500" />
           <p className="text-sm font-semibold text-zinc-300">
@@ -200,14 +222,13 @@ export default function UploadGatekeeper({
         </div>
       )}
 
-      {/* ── Processing States ────────────────────────────────────────── */}
-      {(stage === "hashing" || stage === "checking" || stage === "uploading") && (
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-10 text-center">
+      {/* ── Hashing / Checking spinner ────────────────────────────────── */}
+      {(stage === "hashing" || stage === "checking") && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-8 text-center">
           <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-blue-400" />
           <p className="text-zinc-300 font-medium">
             {stage === "hashing" && "Computing file fingerprint..."}
-            {stage === "checking" && "Checking for duplicate analyses..."}
-            {stage === "uploading" && "Analyzing document..."}
+            {stage === "checking" && "Checking for similar analyses..."}
           </p>
           {file && (
             <p className="mt-2 text-sm text-zinc-500 flex items-center justify-center gap-2">
@@ -217,47 +238,73 @@ export default function UploadGatekeeper({
         </div>
       )}
 
-      {/* ── Duplicate Found Modal ────────────────────────────────────── */}
-      {stage === "duplicate" && duplicate && (
-        <div className="rounded-2xl border border-amber-800/50 bg-zinc-900/90 p-8">
-          <div className="flex items-start gap-4">
-            <div className="rounded-full bg-amber-500/20 p-3">
-              <AlertTriangle className="h-6 w-6 text-amber-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-zinc-100">
-                Document Already Analyzed
-              </h3>
-              <p className="mt-1 text-sm text-zinc-400">
-                This file was previously analyzed on{" "}
-                <span className="text-zinc-200 font-medium">
-                  {duplicate.uploaded_at.toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>{" "}
-                as <span className="text-zinc-200 font-medium">{duplicate.filename}</span>.
-              </p>
-              <div className="mt-6 flex gap-3">
-                <button
-                  onClick={() => onViewReport(duplicate.id)}
-                  className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-500 transition-colors"
-                >
-                  View Existing Report
-                </button>
-                <button
-                  onClick={reset}
-                  className="rounded-lg border border-zinc-700 px-5 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 transition-colors"
-                >
-                  Upload Different File
-                </button>
-              </div>
-            </div>
-            <button onClick={reset} className="text-zinc-500 hover:text-zinc-300">
-              <X className="h-5 w-5" />
+      {/* ── Matches Found — user decides ──────────────────────────────── */}
+      {stage === "matched" && matchInfo && matchInfo.matches.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/20 bg-zinc-900/90 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+            <p className="text-sm font-semibold text-amber-300">
+              {matchInfo.exact ? "This exact file was previously analyzed" : "Similar documents found"}
+            </p>
+          </div>
+
+          {/* Scrollable match list */}
+          <div className="max-h-[220px] overflow-y-auto space-y-2 scrollbar-thin mb-4">
+            {matchInfo.matches.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => onViewReport(m.id)}
+                className="group w-full rounded-lg border border-zinc-800 bg-zinc-900/80 p-2.5 text-left hover:border-zinc-600 transition-all"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className={`shrink-0 rounded ${getScoreBg(m.trust_score)} px-1.5 py-0.5`}>
+                    <span className={`text-xs font-bold ${getScoreColor(m.trust_score)}`}>{m.trust_score}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-zinc-200 truncate group-hover:text-blue-400 transition-colors">
+                      {m.display_name || m.filename}
+                    </p>
+                    {m.author && <p className="text-[11px] text-zinc-400 truncate">{m.author}</p>}
+                    {m.doc_summary && <p className="text-[11px] text-zinc-500 truncate">{m.doc_summary}</p>}
+                    <p className="text-[10px] text-zinc-600 font-mono truncate">{m.filename}</p>
+                  </div>
+                  <ArrowRight className="h-3 w-3 text-zinc-700 group-hover:text-blue-400 transition-colors shrink-0" />
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                if (file && fileHash) runAnalysis(file, fileHash);
+              }}
+              className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-500 transition-colors"
+            >
+              Continue to Analyze
+            </button>
+            <button
+              onClick={reset}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-300 hover:bg-zinc-800 transition-colors"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Abort &amp; Load New File
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ── Analyzing spinner ─────────────────────────────────────────── */}
+      {stage === "uploading" && (
+        <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-8 text-center">
+          <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-blue-400" />
+          <p className="text-zinc-300 font-medium">Analyzing document...</p>
+          {file && (
+            <p className="mt-2 text-sm text-zinc-500 flex items-center justify-center gap-2">
+              <FileText className="h-4 w-4" /> {file.name}
+            </p>
+          )}
         </div>
       )}
 
@@ -269,7 +316,6 @@ export default function UploadGatekeeper({
           <p className="mt-1 text-sm text-zinc-400">
             Taking you to your report...
           </p>
-          {/* Prominent button — always visible as fallback */}
           {reportId && (
             <button
               onClick={() => onViewReport(reportId)}

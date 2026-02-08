@@ -23,8 +23,10 @@ import {
   getAllAnalyses,
   checkFileHash,
   uploadFile,
-  findByDisplayName,
+  getAllDocSummaries,
 } from "@/lib/firebase";
+import { findFuzzyMatches } from "@/lib/fuzzy-match";
+import type { MatchInfo } from "@/components/UploadGatekeeper";
 
 // ── Rejection Modal ─────────────────────────────────────────────────────
 function RejectionModal({
@@ -243,8 +245,6 @@ export default function HomePage() {
   const [recentAnalyses, setRecentAnalyses] = useState<AnalysisDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectionModal, setRejectionModal] = useState<FitnessResult | null>(null);
-  const [similarDocs, setSimilarDocs] = useState<AnalysisDoc[]>([]);
-  const [pendingAnalysis, setPendingAnalysis] = useState<{ file: File; hash: string; metadata: FitnessResult } | null>(null);
 
   // Load analyses from Firestore on mount
   useEffect(() => {
@@ -262,20 +262,53 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  const handleCheckHash = useCallback(async (hash: string) => {
+  const handleCheckHash = useCallback(async (hash: string): Promise<MatchInfo | null> => {
+    // 1. Exact hash match
     const existing = await checkFileHash(hash);
-    if (existing) {
-      return {
-        id: existing.id,
-        filename: existing.filename,
-        uploaded_at: existing.uploaded_at,
-      };
+
+    // 2. Pull all display names for fuzzy matching
+    let allSummaries: Awaited<ReturnType<typeof getAllDocSummaries>> = [];
+    try {
+      allSummaries = await getAllDocSummaries();
+    } catch {
+      console.warn("Failed to load doc summaries for fuzzy matching.");
     }
+
+    if (existing) {
+      // Exact match — show it as top result, plus any fuzzy matches for the same title
+      const displayName = existing.display_name || existing.filename;
+      const fuzzy = findFuzzyMatches(displayName, allSummaries, 0.4, 5);
+
+      // If exact match is already in fuzzy results, use as-is; otherwise prepend it
+      const exactInFuzzy = fuzzy.some((m) => m.id === existing.id);
+      const matches = exactInFuzzy
+        ? fuzzy
+        : [
+            {
+              id: existing.id,
+              display_name: existing.display_name,
+              author: existing.author,
+              doc_summary: existing.doc_summary,
+              filename: existing.filename,
+              trust_score: existing.analysis_result.overall_trust_score,
+              uploaded_at: existing.uploaded_at,
+              similarity: 1,
+            },
+            ...fuzzy.filter((m) => m.id !== existing.id).slice(0, 4),
+          ];
+
+      return { exact: true, matches };
+    }
+
+    // No exact match — fuzzy match will happen later after Gemini extracts display_name
+    // Store summaries in ref so the analysis pipeline can use them
+    docSummariesRef.current = allSummaries;
     return null;
   }, []);
 
-  // Ref to hold fitness metadata across the pipeline
+  // Refs to hold data across the pipeline
   const fitnessMetaRef = useCallback(() => ({ current: null as FitnessResult | null }), [])();
+  const docSummariesRef = useCallback(() => ({ current: [] as Awaited<ReturnType<typeof getAllDocSummaries>> }), [])();
 
   const handleAnalyze = useCallback(
     async (file: File, hash: string): Promise<string> => {
@@ -308,22 +341,6 @@ export default function HomePage() {
           if (!fitness.fit) {
             setRejectionModal(fitness);
             throw new Error("DOCUMENT_NOT_FIT");
-          }
-
-          // ── Non-blocking: check for similar documents by display name ──
-          if (docMetadata.display_name) {
-            console.log("[2.5/7] Checking for similar documents by display name…");
-            try {
-              const similar = await findByDisplayName(docMetadata.display_name);
-              if (similar.length > 0) {
-                console.log(`[2.5/7] Found ${similar.length} similar document(s). Showing panel (non-blocking).`);
-                setSimilarDocs(similar);
-                setPendingAnalysis({ file, hash, metadata: fitness });
-                // Non-blocking — we continue with analysis anyway
-              }
-            } catch (err) {
-              console.warn("[2.5/7] Similar doc check failed (non-blocking):", err);
-            }
           }
 
           console.log("[2/7] Document is suitable. Proceeding.");
@@ -400,13 +417,9 @@ export default function HomePage() {
         console.warn("[7/7] Refresh failed (non-blocking)");
       }
 
-      // Clear similar docs panel once analysis is done
-      setSimilarDocs([]);
-      setPendingAnalysis(null);
-
       return id;
     },
-    [fitnessMetaRef]
+    [fitnessMetaRef, docSummariesRef]
   );
 
   const handleViewReport = useCallback(
@@ -543,44 +556,6 @@ export default function HomePage() {
             Read <span className="text-zinc-500">4 min</span>
           </a>
         </div>
-
-        {/* ── Similar Documents Found (non-blocking) ────────── */}
-        {similarDocs.length > 0 && pendingAnalysis && (
-          <div className="mb-10 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0" />
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-200">Similar documents already assessed</h3>
-                <p className="text-xs text-zinc-500">Documents with the same title were found. Analysis is continuing — this is just a heads-up.</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {similarDocs.map((doc) => (
-                <button
-                  key={doc.id}
-                  onClick={() => router.push(`/report/${doc.id}`)}
-                  className="group w-full rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 text-left hover:border-zinc-700 hover:bg-zinc-900 transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`shrink-0 rounded-lg ${getScoreBg(doc.analysis_result.overall_trust_score)} px-2 py-1`}>
-                      <span className={`text-sm font-bold ${getScoreColor(doc.analysis_result.overall_trust_score)}`}>
-                        {doc.analysis_result.overall_trust_score}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-zinc-200 truncate group-hover:text-blue-400 transition-colors">
-                        {doc.display_name || doc.filename}
-                      </p>
-                      {doc.author && <p className="text-xs text-zinc-400">{doc.author}</p>}
-                      <p className="text-[11px] text-zinc-600 font-mono truncate">{doc.filename}</p>
-                    </div>
-                    <ArrowRight className="h-3.5 w-3.5 text-zinc-700 group-hover:text-blue-400 transition-colors shrink-0" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* ── Previously Assessed (collapsed) ─────────────────── */}
         <PreviouslyAssessed

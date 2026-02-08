@@ -68,7 +68,15 @@ export default function ReportInsights({ r, openDiscuss }: ReportSlideProps) {
               ) : (
                 <div className="space-y-2">
                   {r.bias_detection.biases.map((b, i) => {
-                    const biasTipKey = `bias_${b.type.toLowerCase()}` as keyof typeof import("@/lib/tooltips").TOOLTIPS;
+                    // Normalize: "Appeal to Authority" → "authority", "Confirmation Bias" → "confirmation"
+                    const normalizedType = b.type.toLowerCase().replace(/\s*bias\s*/gi, "").trim();
+                    const shortType = normalizedType.includes("authority") ? "authority"
+                      : normalizedType.includes("confirmation") ? "confirmation"
+                      : normalizedType.includes("survival") ? "survival"
+                      : normalizedType.includes("selection") ? "selection"
+                      : normalizedType.includes("recency") ? "recency"
+                      : normalizedType;
+                    const biasTipKey = `bias_${shortType}` as keyof typeof import("@/lib/tooltips").TOOLTIPS;
                     const biasTip = tip(biasTipKey as never);
                     return (
                       <div key={i} className={`rounded-lg px-3 py-2 border ${b.severity === "High" ? "bg-red-500/5 border-red-500/20" : b.severity === "Medium" ? "bg-yellow-500/5 border-yellow-500/20" : "bg-zinc-800/40 border-zinc-700/30"}`}>

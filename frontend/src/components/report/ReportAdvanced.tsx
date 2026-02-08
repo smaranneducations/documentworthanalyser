@@ -91,7 +91,7 @@ export default function ReportAdvanced({ r, openDiscuss }: ReportSlideProps) {
               <div className="mt-4 text-center mb-3">
                 <HelpTooltip text={tip("hype_score")} insight={r.hype_reality.balance_assessment || undefined} position="top" maxWidth={360}>
                   <span className="cursor-help">
-                    <span className={`text-3xl font-bold ${r.hype_reality.hype_score > 80 ? "text-red-400" : r.hype_reality.hype_score > 50 ? "text-yellow-400" : "text-emerald-400"}`}>
+                    <span className={`text-3xl font-bold ${r.hype_reality.hype_score > 70 ? "text-red-400" : r.hype_reality.hype_score > 45 ? "text-yellow-400" : "text-emerald-400"}`}>
                       {r.hype_reality.hype_score}
                     </span>
                     <span className="text-zinc-500"> / 100</span>

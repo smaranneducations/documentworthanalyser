@@ -9,7 +9,7 @@ export const TOOLTIPS = {
   platform_scope:
     "DocDetector specializes in technology vendor & advisory documents: consulting proposals, vendor pitches, training brochures, whitepapers, and advisory decks on AI, Data, Cloud, Digital Transformation, and Governance. Documents outside this scope are detected and rejected before analysis.",
   overall_trust_score:
-    "AI-generated composite score (0-100) synthesizing all analysis modules. Gemini evaluates forensics, readiness, obsolescence, hype, bias, and strategic positioning to produce a holistic trust rating.",
+    "AI-generated composite score (0-100) synthesizing all analysis modules. 65+ = Trustworthy, 35-65 = Review Advised, <35 = Low Trust. A typical well-written business document scores 50-65. Only genuinely problematic documents fall below 35.",
   file_hash:
     "SHA-256 fingerprint of the uploaded file. Used to detect duplicate uploads — if the same file is uploaded again, the existing report is shown.",
 
@@ -101,7 +101,7 @@ export const TOOLTIPS = {
   section_forensics:
     "Hybrid analysis: heuristic engine counts manipulative patterns (weasel words, puffery, urgency), then Gemini judges the overall manipulation severity and detects logical fallacies that require understanding argument structure.",
   manipulation_index:
-    "Hybrid score (0-100): heuristic counts weasel words, puffery, urgency, passive voice, and jargon. Gemini then judges overall manipulation severity considering not just quantity but context and intent. Scores >40 are flagged.",
+    "Hybrid score (0-100): heuristic counts weasel words, puffery, urgency, passive voice, and jargon. Gemini judges manipulation severity in context — standard business persuasion is not penalized. 0-35 = Low (normal), 35-55 = Medium (noticeable), 55+ = High (excessive).",
   weasel_words:
     "Heuristic detection: accountability-destroying phrases like 'arguably', 'up to', 'may contribute' that transform claims into unfalsifiable statements.",
   percentage_puffery:
@@ -133,7 +133,7 @@ export const TOOLTIPS = {
   section_fluff:
     "Fully heuristic analysis: quantifies readability complexity relative to substantive value using mathematical formulas (Gunning Fog) and pattern counting. No AI judgment needed — pure computation.",
   fluff_score:
-    "Heuristic score (0-100) from Gunning Fog Index, adjective/verb ratio, and unique data points. >60 = low information density.",
+    "Heuristic score (0-100) from Gunning Fog Index, adjective/verb ratio, and unique data points. 0-40 = Low (substantive), 40-70 = Medium (some padding), 70+ = High (low information density).",
   fog_index:
     "Gunning Fog Index — mathematical formula estimating years of education needed to understand the text. >18 = academic paper level, <12 = accessible.",
   adjective_verb_ratio:
@@ -171,7 +171,7 @@ export const TOOLTIPS = {
   section_hype:
     "Gemini meta-analysis using all prior findings to judge whether the document is balanced, optimistic, or sales propaganda. Considers deception, bias, and sentiment in context.",
   hype_score:
-    "AI-generated optimism score (0-100). Optimal credibility range is 60-80% positive. >80 = potentially unrealistic.",
+    "AI-generated optimism score (0-100). Business documents naturally have some optimism. 0-45 = Balanced, 45-70 = Optimistic, 70+ = Marketing-Heavy.",
   positive_sentiment:
     "AI-measured percentage of positive/promotional language vs. balanced or cautionary language.",
   risk_mentions:
@@ -211,7 +211,7 @@ export const TOOLTIPS = {
   section_bias:
     "Gemini-powered detection of five cognitive biases. AI understands what evidence is being selectively presented, unlike keyword matching which can only detect surface patterns.",
   overall_bias_score:
-    "AI-generated bias score (0-100). Gemini evaluates evidence selectivity, narrative framing, and argument balance to assess overall bias.",
+    "AI-generated bias score (0-100). Some favorable framing is normal in business documents. 0-25 = Low (standard), 25-50 = Medium (noticeable patterns), 50+ = High (systematic bias).",
   bias_confirmation:
     "AI-detected: only presenting successful case studies without failures. Gemini understands the narrative structure, not just word counts.",
   bias_survival:

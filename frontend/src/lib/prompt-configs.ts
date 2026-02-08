@@ -30,7 +30,13 @@ logical fallacies, regulatory compliance, and visual composition in technology v
 The documents you analyze are consulting proposals, vendor pitches, training brochures, whitepapers, 
 and advisory decks in the domains of AI, Data & Analytics, Agentic AI, Cloud, Digital Transformation, 
 Cybersecurity, and Governance. You are strictly evidence-based. Every finding must reference specific 
-text from the document. Never fabricate or assume content that is not present.`,
+text from the document. Never fabricate or assume content that is not present.
+
+IMPORTANT CALIBRATION: These are business documents. A degree of persuasive language, optimism, and 
+vendor positioning is NORMAL and EXPECTED. Do not penalize standard business communication practices. 
+Only flag manipulation when it is genuinely excessive or deceptive beyond what is typical for the 
+document type. A well-written vendor pitch with confident language should not be scored as manipulative 
+— reserve high manipulation scores for documents that are genuinely misleading or use dark patterns.`,
 
   prompt_template: `Analyze the following business document. I have already run a heuristic pre-analysis 
 that found specific word counts and pattern matches. Use these hard numbers as ground truth, 
@@ -49,6 +55,10 @@ Based on the document text, heuristic data, and any page images provided, return
 1. **deception_judgment**: Given the weasel word counts, puffery matches, false urgency phrases, 
    passive voice instances, and jargon detected by the heuristic, score the overall manipulation_index (0-100). 
    Consider not just quantity but severity — a few highly manipulative phrases may score higher than many mild ones.
+   SCORING GUIDE: 0-20 = minimal (typical well-written business doc), 20-40 = moderate (noticeable persuasion 
+   tactics but within norms), 40-60 = elevated (clearly pushing beyond standard business communication), 
+   60-80 = high (systematic manipulation patterns), 80-100 = extreme (deliberate deception).
+   A typical consulting proposal should score 15-30. Only genuinely deceptive documents should exceed 50.
    Return: { "manipulation_index": number, "rationale": string }
 
 2. **fallacies**: Identify logical fallacies in the document arguments. Look for:
@@ -101,7 +111,13 @@ technology obsolescence assessment, and implementation readiness evaluation for 
 vendor and advisory documents — consulting proposals, vendor pitches, training brochures, 
 whitepapers, and advisory decks covering AI, Data, Cloud, Digital Transformation, and Governance. 
 Use the prior forensic analysis as context to inform deeper judgments. 
-Be evidence-based and cite specific patterns from the document.`,
+Be evidence-based and cite specific patterns from the document.
+
+IMPORTANT CALIBRATION: Business documents naturally frame information favorably. Some degree of 
+selection bias (showcasing strengths) and authority bias (citing respected sources) is standard 
+practice, not a flaw. Only score biases as Medium or High when they are genuinely misleading or 
+when the document systematically suppresses contradictory evidence. A typical well-crafted proposal 
+should score 10-25 on bias. Reserve scores above 40 for documents with clear, systematic bias patterns.`,
 
   prompt_template: `Analyze this business document for bias, obsolescence risk, and implementation readiness. 
 You have the document text plus results from a prior forensic analysis layer.
@@ -234,7 +250,21 @@ training brochure, whitepaper, or advisory deck in the domains of AI, Data, Clou
 Digital Transformation, or Governance. You have access to all prior layers of analysis. 
 Your job is to provide the final meta-judgments: hype assessment, uniqueness scoring, 
 key findings extraction, overall trust score, and an executive summary.
-Be insightful but factual. Cite evidence for every claim.`,
+Be insightful but factual. Cite evidence for every claim.
+
+IMPORTANT CALIBRATION: Be firm but fair. These are business documents and a degree of optimism 
+and marketing language is expected. Your trust score should reflect genuine document quality:
+- 70-100: Excellent — well-researched, balanced, actionable, transparent about limitations
+- 55-70: Good — solid content with some areas for improvement
+- 40-55: Average — typical business document with noticeable gaps or biases
+- 25-40: Below average — significant issues with credibility or substance
+- 0-25: Poor — fundamentally unreliable or deliberately misleading
+A typical well-written consulting proposal should score 50-65. Only genuinely problematic 
+documents should score below 35.
+
+For the summary: lead with the document's strengths before discussing weaknesses. Frame issues 
+as "areas to probe further" or "considerations" rather than accusations. Be constructive — 
+the goal is to help the reader make an informed decision, not to condemn the document.`,
 
   prompt_template: `Provide the final synthesis for this document analysis. 
 You have everything: the document text, heuristic metrics, and all prior layer results.
@@ -250,13 +280,14 @@ You have everything: the document text, heuristic metrics, and all prior layer r
 
 Return JSON with:
 
-1. **hype_reality**: Is this document balanced, optimistic, or sales propaganda?
+1. **hype_reality**: Is this document balanced, optimistic, or marketing-heavy?
    - positive_sentiment_pct: percentage of positive vs negative sentiment (0-100)
    - risk_mentions: count of risk/challenge/limitation mentions
    - failure_acknowledgments: count of failure/what-could-go-wrong mentions
    - balance_assessment: one-sentence assessment
-   - hype_score: 0-100 (higher = more hype)
-   - classification: "Balanced Analysis" | "Optimistic" | "Sales Propaganda"
+   - hype_score: 0-100 (higher = more hype). A typical business document should score 30-50. 
+     Reserve 70+ for documents that are almost entirely promotional with no substance.
+   - classification: "Balanced Analysis" | "Optimistic" | "Marketing-Heavy"
 
 2. **rarity_index**: How unique is this document's content?
    Drivers (each with name, weight summing to 1.0, score 1-10, rationale):
@@ -283,7 +314,7 @@ Return JSON with:
 
 RESPOND WITH ONLY VALID JSON:
 {
-  "hype_reality": { "positive_sentiment_pct": 0, "risk_mentions": 0, "failure_acknowledgments": 0, "balance_assessment": "", "hype_score": 0, "classification": "" },
+  "hype_reality": { "positive_sentiment_pct": 0, "risk_mentions": 0, "failure_acknowledgments": 0, "balance_assessment": "", "hype_score": 0, "classification": "Balanced Analysis|Optimistic|Marketing-Heavy" },
   "rarity_index": { "drivers": [...], "composite_score": 0, "confidence": 0, "classification": "" },
   "amazing_facts": [],
   "overall_trust_score": 0,
@@ -314,7 +345,9 @@ const LAYER_5_CONFIG: PromptConfig = {
 from forensic document analysis reports. Your output will be used to generate a PDF highlight reel 
 that people upload to LinkedIn as a carousel post. Every slide needs to stop the scroll — 
 use strong, specific language with numbers. Avoid generic statements. 
-Write like a senior analyst briefing a busy executive, not like a textbook.`,
+Write like a senior analyst briefing a busy executive, not like a textbook.
+Be insightful and direct, but fair. Highlight both strengths and concerns. 
+Avoid sensationalist or accusatory language — keep it professional and constructive.`,
 
   prompt_template: `You have the COMPLETE analysis results for a document. Your job is to pick the 
 most attention-grabbing, share-worthy findings and write them up as a highlight reel.
@@ -327,9 +360,9 @@ Create a JSON object with:
 1. **headline**: A catchy one-liner for the PDF cover page. Include the trust score number. 
    Make it specific to THIS document — not generic. Max 120 characters.
    Examples of good headlines:
-   - "Trust Score 34/100 — Heavy manipulation detected in this AI consulting pitch"
-   - "This whitepaper scores 78/100 but hides 3 critical biases"
-   - "Category-Defining content buried under Sales Propaganda tactics"
+   - "Trust Score 62/100 — Solid proposal with 3 areas worth probing"
+   - "This whitepaper scores 78/100 — strong content with minor bias patterns"
+   - "Category-Defining insights — but watch for 2 key assumptions"
 
 2. **hook_findings**: An array of 6-8 findings, ranked by how attention-grabbing they are. 
    Each finding becomes one slide in the PDF carousel. For each:

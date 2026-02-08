@@ -43,7 +43,8 @@ const DEFAULT_COLORS: Record<string, { text: string; bg: string; border: string 
   "High Risk": { text: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30" },
   "Balanced Analysis": { text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
   "Optimistic": { text: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/30" },
-  "Sales Propaganda": { text: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30" },
+  "Marketing-Heavy": { text: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/30" },
+  "Sales Propaganda": { text: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/30" },
 };
 
 export default function ClassificationBadge({ label, value, confidence, scoreLabel, tooltip, valueTooltip, colorMap }: Props) {

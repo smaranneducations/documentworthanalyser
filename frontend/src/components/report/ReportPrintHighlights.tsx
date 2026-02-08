@@ -135,14 +135,14 @@ function buildFallbackHighlights(analysis: AnalysisDoc): PdfHighlightFinding[] {
     section: "manipulation",
     title: `Manipulation Index: ${r.forensics.deception.manipulation_index}/100`,
     insight: r.forensics.deception.manipulation_rationale || `${r.forensics.deception.weasel_words.length} weasel word types and ${r.forensics.deception.false_urgency.length} false urgency phrases detected.`,
-    hook_score: r.forensics.deception.manipulation_index > 40 ? 9 : r.forensics.deception.manipulation_index > 20 ? 6 : 3,
+    hook_score: r.forensics.deception.manipulation_index > 55 ? 9 : r.forensics.deception.manipulation_index > 35 ? 6 : 3,
   });
 
   findings.push({
     section: "hype",
     title: `Hype: ${r.hype_reality.hype_score}/100 — ${r.hype_reality.classification}`,
     insight: r.hype_reality.balance_assessment,
-    hook_score: r.hype_reality.hype_score > 70 ? 8 : r.hype_reality.hype_score > 40 ? 5 : 3,
+    hook_score: r.hype_reality.hype_score > 65 ? 8 : r.hype_reality.hype_score > 45 ? 5 : 3,
   });
 
   if (r.bias_detection.biases.length > 0) {
@@ -150,7 +150,7 @@ function buildFallbackHighlights(analysis: AnalysisDoc): PdfHighlightFinding[] {
       section: "bias",
       title: `Bias Score: ${r.bias_detection.overall_bias_score}/100`,
       insight: `${r.bias_detection.biases.length} bias type(s): ${r.bias_detection.biases.map(b => b.type).join(", ")}.`,
-      hook_score: r.bias_detection.overall_bias_score > 30 ? 7 : 4,
+      hook_score: r.bias_detection.overall_bias_score > 40 ? 7 : 4,
     });
   }
 
@@ -183,7 +183,7 @@ function buildFallbackHighlights(analysis: AnalysisDoc): PdfHighlightFinding[] {
     section: "fluff",
     title: `Fluff Score: ${r.forensics.fluff.fluff_score}/100`,
     insight: `Fog Index ${r.forensics.fluff.fog_index.toFixed(1)}, ${r.forensics.fluff.buzzword_count} buzzwords vs ${r.forensics.fluff.action_verb_count} action verbs.`,
-    hook_score: r.forensics.fluff.fluff_score > 50 ? 6 : 3,
+    hook_score: r.forensics.fluff.fluff_score > 60 ? 6 : 3,
   });
 
   if (r.amazing_facts.length > 0) {

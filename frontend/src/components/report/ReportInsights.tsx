@@ -55,7 +55,7 @@ export default function ReportInsights({ r, openDiscuss }: ReportSlideProps) {
                     <span className="cursor-help border-b border-dotted border-zinc-600">Overall Bias Score</span>
                   </HelpTooltip>
                 </p>
-                <span className={`text-4xl font-bold ${r.bias_detection.overall_bias_score > 40 ? "text-red-400" : r.bias_detection.overall_bias_score > 15 ? "text-yellow-400" : "text-emerald-400"}`}>
+                <span className={`text-4xl font-bold ${r.bias_detection.overall_bias_score > 50 ? "text-red-400" : r.bias_detection.overall_bias_score > 25 ? "text-yellow-400" : "text-emerald-400"}`}>
                   {r.bias_detection.overall_bias_score}
                 </span>
                 <span className="text-zinc-500 text-lg"> / 100</span>

@@ -14,9 +14,9 @@ export default function TrustScoreGauge({ score, size = 180 }: TrustScoreGaugePr
   const progress = (score / 100) * circumference;
 
   const getColor = (s: number) => {
-    if (s >= 70) return { stroke: "#22c55e", text: "text-emerald-400", label: "Trustworthy" };
-    if (s >= 40) return { stroke: "#eab308", text: "text-yellow-400", label: "Caution" };
-    return { stroke: "#ef4444", text: "text-red-400", label: "Suspicious" };
+    if (s >= 65) return { stroke: "#22c55e", text: "text-emerald-400", label: "Trustworthy" };
+    if (s >= 35) return { stroke: "#eab308", text: "text-yellow-400", label: "Review Advised" };
+    return { stroke: "#ef4444", text: "text-red-400", label: "Low Trust" };
   };
 
   const { stroke, text, label } = getColor(score);

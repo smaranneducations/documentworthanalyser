@@ -25,7 +25,7 @@ export default function ReportForensics({ r, openDiscuss }: ReportSlideProps) {
                     <span className="cursor-help border-b border-dotted border-zinc-600">Manipulation Index</span>
                   </HelpTooltip>
                 </p>
-                <span className={`text-4xl font-bold ${r.forensics.deception.manipulation_index > 40 ? "text-red-400" : r.forensics.deception.manipulation_index > 20 ? "text-yellow-400" : "text-emerald-400"}`}>
+                <span className={`text-4xl font-bold ${r.forensics.deception.manipulation_index > 55 ? "text-red-400" : r.forensics.deception.manipulation_index > 35 ? "text-yellow-400" : "text-emerald-400"}`}>
                   {r.forensics.deception.manipulation_index}
                 </span>
                 <span className="text-zinc-500 text-lg"> / 100</span>
@@ -144,7 +144,7 @@ export default function ReportForensics({ r, openDiscuss }: ReportSlideProps) {
                     <span className="cursor-help border-b border-dotted border-zinc-600">Fluff Score</span>
                   </HelpTooltip>
                 </p>
-                <span className={`text-4xl font-bold ${r.forensics.fluff.fluff_score > 60 ? "text-red-400" : r.forensics.fluff.fluff_score > 30 ? "text-yellow-400" : "text-emerald-400"}`}>
+                <span className={`text-4xl font-bold ${r.forensics.fluff.fluff_score > 70 ? "text-red-400" : r.forensics.fluff.fluff_score > 40 ? "text-yellow-400" : "text-emerald-400"}`}>
                   {r.forensics.fluff.fluff_score}
                 </span>
                 <span className="text-zinc-500 text-lg"> / 100</span>

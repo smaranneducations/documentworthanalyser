@@ -42,18 +42,11 @@ export default function ReportHero({ analysis, r, openDiscuss }: ReportSlideProp
                 {expanded ? fullSummary : shortSummary}
               </p>
 
-              {/* Hashtags — shown when expanded */}
+              {/* Hashtags — shown when expanded, as a single copyable string */}
               {expanded && hashtags.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {hashtags.map((tag, i) => (
-                    <span
-                      key={i}
-                      className="inline-block rounded-full bg-blue-500/10 border border-blue-500/20 px-3 py-1 text-xs text-blue-400 font-medium"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                <p className="mt-4 text-xs text-blue-400 leading-relaxed select-all cursor-text">
+                  {hashtags.join("  ")}
+                </p>
               )}
 
               {/* Detail toggle */}

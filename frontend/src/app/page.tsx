@@ -11,7 +11,9 @@ import {
 import UploadGatekeeper from "@/components/UploadGatekeeper";
 import HelpTooltip from "@/components/HelpTooltip";
 import { tip } from "@/lib/tooltips";
-import { analyzeDocument } from "@/lib/analyzer";
+import { analyzeDocument, runHeuristicPrePass, mergeGeminiResults } from "@/lib/analyzer";
+import { runGeminiPipeline, isGeminiAvailable } from "@/lib/gemini";
+import { pdfToImages } from "@/lib/pdf-to-images";
 import { extractText } from "@/lib/extract-text";
 import type { AnalysisDoc } from "@/lib/types";
 import {
@@ -56,15 +58,48 @@ export default function HomePage() {
 
   const handleAnalyze = useCallback(
     async (file: File, hash: string): Promise<string> => {
-      console.log("[1/5] Extracting text from file…");
+      const useGemini = isGeminiAvailable();
+      console.log(`[0] Analysis mode: ${useGemini ? "GEMINI + Heuristic" : "Heuristic Only"}`);
+
+      console.log("[1/6] Extracting text from file…");
       const text = await extractText(file);
-      console.log("[1/5] Done. Text length:", text.length);
+      console.log("[1/6] Done. Text length:", text.length);
 
-      console.log("[2/5] Running analysis engine…");
-      const result = await analyzeDocument(text);
-      console.log("[2/5] Done. Trust score:", result.overall_trust_score);
+      let result;
 
-      console.log("[3/5] Saving to Firestore…");
+      if (useGemini) {
+        // ── Hybrid: Heuristic pre-pass + Gemini layers ──────────────
+        console.log("[2/6] Running heuristic pre-pass…");
+        const heuristic = runHeuristicPrePass(text);
+        console.log("[2/6] Done. Word count:", heuristic.word_count);
+
+        console.log("[3/6] Generating page images for multimodal…");
+        let pageImages: { mimeType: string; data: string }[] | null = null;
+        try {
+          pageImages = await pdfToImages(file, 8, 768);
+          console.log(`[3/6] Done. ${pageImages?.length ?? 0} page images.`);
+        } catch (err) {
+          console.warn("[3/6] Page image generation failed (non-blocking):", err);
+        }
+
+        console.log("[4/6] Running Gemini 4-layer pipeline…");
+        try {
+          const geminiLayers = await runGeminiPipeline(text, heuristic, pageImages);
+          result = mergeGeminiResults(heuristic, geminiLayers as { layer1: Record<string, unknown>; layer2: Record<string, unknown>; layer3: Record<string, unknown>; layer4: Record<string, unknown> });
+          console.log("[4/6] Gemini analysis complete. Trust score:", result.overall_trust_score);
+        } catch (err) {
+          console.error("[4/6] Gemini pipeline failed, falling back to heuristic:", err);
+          result = await analyzeDocument(text);
+          console.log("[4/6] Heuristic fallback complete. Trust score:", result.overall_trust_score);
+        }
+      } else {
+        // ── Heuristic only (no API key) ─────────────────────────────
+        console.log("[2/6] Running heuristic analysis (Gemini not configured)…");
+        result = await analyzeDocument(text);
+        console.log("[2/6] Done. Trust score:", result.overall_trust_score);
+      }
+
+      console.log("[5/6] Saving to Firestore…");
       const id = await saveAnalysis({
         file_hash: hash,
         filename: file.name,
@@ -72,25 +107,25 @@ export default function HomePage() {
         file_type: file.type,
         analysis_result: result,
       });
-      console.log("[3/5] Done. Firestore doc ID:", id);
+      console.log("[5/6] Done. Firestore doc ID:", id);
 
-      // 4. Upload original file to Firebase Storage (best effort)
-      console.log("[4/5] Uploading file to Storage…");
+      // Upload original file to Firebase Storage (best effort)
+      console.log("[5.5/6] Uploading file to Storage…");
       try {
         await uploadFile(id, file);
-        console.log("[4/5] Done.");
+        console.log("[5.5/6] Done.");
       } catch (err) {
-        console.warn("[4/5] Storage upload failed (non-blocking):", err);
+        console.warn("[5.5/6] Storage upload failed (non-blocking):", err);
       }
 
-      // 5. Refresh the list from Firestore
-      console.log("[5/5] Refreshing recent analyses…");
+      // Refresh the list from Firestore
+      console.log("[6/6] Refreshing recent analyses…");
       try {
         const analyses = await getAllAnalyses(20);
         setRecentAnalyses(analyses);
-        console.log("[5/5] Done. Count:", analyses.length);
+        console.log("[6/6] Done. Count:", analyses.length);
       } catch {
-        console.warn("[5/5] Refresh failed (non-blocking)");
+        console.warn("[6/6] Refresh failed (non-blocking)");
       }
 
       return id;

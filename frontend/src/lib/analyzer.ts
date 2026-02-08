@@ -888,7 +888,42 @@ function generateSummary(result: AnalysisResult): string {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MAIN ENTRY POINT
+// HEURISTIC PRE-PASS (exported for Gemini pipeline)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface HeuristicPrePass {
+  fluff: FluffIndex;
+  data_intensity: DataIntensity;
+  deception_raw: DeceptionDetection;
+  regulatory_raw: {
+    regulatory_mentions: string[];
+    ethical_mentions: string[];
+    privacy_mentions: string[];
+  };
+  word_count: number;
+  sentence_count: number;
+}
+
+export function runHeuristicPrePass(text: string): HeuristicPrePass {
+  const sentences = extractSentences(text);
+  const wordCount = text.split(/\s+/).length;
+
+  return {
+    fluff: analyzeFluffIndex(text),
+    data_intensity: analyzeDataIntensity(text),
+    deception_raw: analyzeDeception(text, sentences),
+    regulatory_raw: {
+      regulatory_mentions: findMatches(text, REGULATORY_TERMS),
+      ethical_mentions: findMatches(text, ETHICAL_TERMS),
+      privacy_mentions: findMatches(text, PRIVACY_TERMS),
+    },
+    word_count: wordCount,
+    sentence_count: sentences.length,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN ENTRY POINT — Heuristic Only (fallback)
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function analyzeDocument(text: string): Promise<AnalysisResult> {
@@ -925,4 +960,132 @@ export async function analyzeDocument(text: string): Promise<AnalysisResult> {
   result.summary = generateSummary(result);
 
   return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GEMINI-ENHANCED ENTRY POINT
+// Merges heuristic pre-pass with Gemini layered results
+// ═══════════════════════════════════════════════════════════════════════════
+
+export function mergeGeminiResults(
+  heuristic: HeuristicPrePass,
+  geminiLayers: { layer1: Record<string, unknown>; layer2: Record<string, unknown>; layer3: Record<string, unknown>; layer4: Record<string, unknown> },
+): AnalysisResult {
+  const L1 = geminiLayers.layer1 as Record<string, unknown>;
+  const L2 = geminiLayers.layer2 as Record<string, unknown>;
+  const L3 = geminiLayers.layer3 as Record<string, unknown>;
+  const L4 = geminiLayers.layer4 as Record<string, unknown>;
+
+  // ── Helper to safely extract with defaults ────────────────────────────
+  const safe = <T>(val: unknown, fallback: T): T => {
+    if (val === undefined || val === null) return fallback;
+    return val as T;
+  };
+
+  // ── Forensics: heuristic counts + Gemini judgment ─────────────────────
+  const deceptionJudgment = safe(L1.deception_judgment, { manipulation_index: heuristic.deception_raw.manipulation_index, rationale: "" }) as { manipulation_index: number; rationale: string };
+
+  const forensics: ContentForensicsResult = {
+    deception: {
+      ...heuristic.deception_raw,
+      manipulation_index: clamp(Math.round(deceptionJudgment.manipulation_index), 0, 100),
+    },
+    fallacies: safe(L1.fallacies, { fallacies: [], fallacy_density: 0 }) as FallacyDetection,
+    fluff: heuristic.fluff,
+  };
+
+  // ── Visual Intensity: from Gemini multimodal ──────────────────────────
+  const visual_intensity = safe(L1.visual_intensity, { score: 1, diagram_references: 0, formatting_richness: 0, assessment: "Unable to assess" }) as VisualIntensity;
+  visual_intensity.score = clamp(Math.round(visual_intensity.score), 1, 10);
+
+  // ── Regulatory: heuristic mentions + Gemini judgment ──────────────────
+  const regJudgment = safe(L1.regulatory_judgment, { red_flags: [], safety_level: "Caution", safety_score: 50 }) as { red_flags: string[]; safety_level: string; safety_score: number };
+  const regulatory_safety: RegulatoryEthicalSafety = {
+    regulatory_mentions: heuristic.regulatory_raw.regulatory_mentions,
+    ethical_mentions: heuristic.regulatory_raw.ethical_mentions,
+    privacy_mentions: heuristic.regulatory_raw.privacy_mentions,
+    red_flags: regJudgment.red_flags,
+    safety_level: (["Safe", "Caution", "High Risk"].includes(regJudgment.safety_level) ? regJudgment.safety_level : "Caution") as "Safe" | "Caution" | "High Risk",
+    safety_score: clamp(Math.round(regJudgment.safety_score), 0, 100),
+  };
+
+  // ── Layer 2: Bias, Obsolescence, Implementation ───────────────────────
+  const biasRaw = safe(L2.bias_detection, { biases: [], overall_bias_score: 0 }) as { biases: BiasInstance[]; overall_bias_score: number };
+  const bias_detection: BiasDetection = {
+    biases: biasRaw.biases,
+    overall_bias_score: clamp(Math.round(biasRaw.overall_bias_score), 0, 100),
+  };
+
+  const obsRaw = safe(L2.obsolescence_risk, { outdated_references: [], missing_current_practices: [], risk_level: "Medium", risk_score: 50 }) as ObsolescenceRisk;
+  const obsolescence_risk: ObsolescenceRisk = {
+    ...obsRaw,
+    risk_level: (["Low", "Medium", "High", "Critical"].includes(obsRaw.risk_level) ? obsRaw.risk_level : "Medium") as "Low" | "Medium" | "High" | "Critical",
+    risk_score: clamp(Math.round(obsRaw.risk_score), 0, 100),
+  };
+
+  const implRaw = safe(L2.implementation_readiness, { artifact_presence: [], resource_clarity_score: 5, timeline_reality_score: 5, prerequisite_check_score: 5, readiness_score: 5, verdict: "Partially Actionable" }) as ImplementationReadiness;
+  const implementation_readiness: ImplementationReadiness = {
+    ...implRaw,
+    readiness_score: clamp(Math.round(implRaw.readiness_score), 1, 10),
+    resource_clarity_score: clamp(Math.round(implRaw.resource_clarity_score), 1, 10),
+    timeline_reality_score: clamp(Math.round(implRaw.timeline_reality_score), 1, 10),
+    prerequisite_check_score: clamp(Math.round(implRaw.prerequisite_check_score), 1, 10),
+    verdict: (["Theoretical Only", "Partially Actionable", "Implementation Ready"].includes(implRaw.verdict) ? implRaw.verdict : "Partially Actionable") as "Theoretical Only" | "Partially Actionable" | "Implementation Ready",
+  };
+
+  // ── Layer 3: Strategic Classifications ─────────────────────────────────
+  const safeModule = (raw: unknown, fallbackClass: string) => {
+    const m = safe(raw, { drivers: [], composite_score: 50, confidence: 50, classification: fallbackClass }) as { drivers: WeightedDriver[]; composite_score: number; confidence: number; classification: string };
+    return {
+      drivers: m.drivers,
+      composite_score: clamp(Math.round(m.composite_score), 0, 100),
+      confidence: clamp(Math.round(m.confidence), 0, 100),
+      classification: m.classification,
+    };
+  };
+
+  const provider_consumer = safeModule(L3.provider_consumer, "Balanced") as ProviderConsumerModule;
+  const company_scale = safeModule(L3.company_scale, "Mid-tier") as CompanyScaleModule;
+  const target_scale = safeModule(L3.target_scale, "SME") as TargetScaleModule;
+  const audience_level = safeModule(L3.audience_level, "Manager") as AudienceLevelModule;
+
+  // ── Layer 4: Synthesis ────────────────────────────────────────────────
+  const hypeRaw = safe(L4.hype_reality, { positive_sentiment_pct: 50, risk_mentions: 0, failure_acknowledgments: 0, balance_assessment: "", hype_score: 50, classification: "Balanced Analysis" }) as HypeReality;
+  const hype_reality: HypeReality = {
+    ...hypeRaw,
+    positive_sentiment_pct: clamp(Math.round(hypeRaw.positive_sentiment_pct), 0, 100),
+    hype_score: clamp(Math.round(hypeRaw.hype_score), 0, 100),
+    classification: (["Balanced Analysis", "Optimistic", "Sales Propaganda"].includes(hypeRaw.classification) ? hypeRaw.classification : "Balanced Analysis") as "Balanced Analysis" | "Optimistic" | "Sales Propaganda",
+  };
+
+  const rarityRaw = safe(L4.rarity_index, { drivers: [], composite_score: 50, confidence: 50, classification: "Differentiated" }) as RarityIndexModule;
+  const rarity_index: RarityIndexModule = {
+    drivers: rarityRaw.drivers,
+    composite_score: clamp(Math.round(rarityRaw.composite_score), 0, 100),
+    confidence: clamp(Math.round(rarityRaw.confidence), 0, 100),
+    classification: (["Commodity", "Differentiated", "Category-Defining"].includes(rarityRaw.classification) ? rarityRaw.classification : "Differentiated") as "Commodity" | "Differentiated" | "Category-Defining",
+  };
+
+  const amazing_facts = safe(L4.amazing_facts, []) as AmazingFact[];
+  const overall_trust_score = clamp(Math.round(safe(L4.overall_trust_score, 50) as number), 0, 100);
+  const summary = safe(L4.summary, "Analysis complete.") as string;
+
+  return {
+    overall_trust_score,
+    summary,
+    provider_consumer,
+    company_scale,
+    target_scale,
+    audience_level,
+    rarity_index,
+    forensics,
+    implementation_readiness,
+    obsolescence_risk,
+    hype_reality,
+    regulatory_safety,
+    visual_intensity,
+    data_intensity: heuristic.data_intensity,
+    bias_detection,
+    amazing_facts,
+  };
 }

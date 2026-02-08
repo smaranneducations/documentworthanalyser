@@ -1,32 +1,33 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Comprehensive Tooltip Dictionary
 // Every label, header, keyword, and metric in the dashboard explained.
+// Updated for hybrid Gemini AI + heuristic engine architecture.
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const TOOLTIPS = {
   // ── Overall ──────────────────────────────────────────────────────────────
   overall_trust_score:
-    "Composite score (0-100) combining all modules: forensics, readiness, obsolescence, hype, bias, and strategic assessment. Higher = more trustworthy.",
+    "AI-generated composite score (0-100) synthesizing all analysis modules. Gemini evaluates forensics, readiness, obsolescence, hype, bias, and strategic positioning to produce a holistic trust rating.",
   file_hash:
     "SHA-256 fingerprint of the uploaded file. Used to detect duplicate uploads — if the same file is uploaded again, the existing report is shown.",
 
   // ── Classification Strip ─────────────────────────────────────────────────
   provider_consumer_label:
-    "Determines who benefits most from this document — the service provider (vendor) or the service consumer (reader/client).",
+    "AI classification of who benefits most from this document — the service provider (vendor) or the service consumer (reader/client). Powered by Gemini analysis of intent and language patterns.",
   originator_scale_label:
-    "Detects whether this was created by a solo consultant, boutique firm, or a Big 4 / Global System Integrator (GSI).",
+    "AI detection of whether this was created by a solo consultant, boutique firm, or a Big 4 / Global System Integrator (GSI). Gemini evaluates tone, structure, and branding signals.",
   target_company_label:
-    "Identifies the intended organizational scale — startup, SME, or enterprise — based on governance, budget, and security language.",
+    "AI identification of the intended organizational scale — startup, SME, or enterprise — based on governance, budget, and security language patterns.",
   audience_level_label:
-    "Assesses who should read this document — developers, managers, VPs, or C-suite executives — based on language and decision scope.",
+    "AI assessment of who should read this document — developers, managers, VPs, or C-suite executives — based on language sophistication and decision scope.",
   uniqueness_label:
-    "Measures how original the content is. Commodity = repackaged conventional wisdom. Category-Defining = genuinely novel insights.",
+    "AI evaluation of content originality. Commodity = repackaged conventional wisdom. Category-Defining = genuinely novel insights. Gemini compares against general industry knowledge.",
   confidence:
-    "Statistical confidence in the classification. Higher % means stronger signal from the text patterns detected.",
+    "AI confidence in the classification. Higher % means Gemini found stronger, more consistent signals across the document.",
 
   // ── Module 1: Provider vs Consumer ───────────────────────────────────────
   section_provider_consumer:
-    "Analyzes whether the document primarily serves vendor interests (upselling, lock-in) or empowers the reader to act independently.",
+    "Gemini analyzes whether the document primarily serves vendor interests (upselling, lock-in) or empowers the reader to act independently. Uses deception and bias context from prior analysis layers.",
   driver_problem_definition:
     "Does the document frame the problem as needing external help (provider-favored) or as something your team can solve internally (consumer-favored)?",
   driver_vendor_lockin:
@@ -40,7 +41,7 @@ export const TOOLTIPS = {
 
   // ── Module 2: Originator Scale ───────────────────────────────────────────
   section_company_scale:
-    "Detects the likely originator's company size based on framework proprietary level, data depth, branding, service breadth, and legal language.",
+    "Gemini classifies the likely originator's company size based on framework sophistication, data depth, branding signals, service breadth, and legal language.",
   driver_framework_proprietary:
     "Generic frameworks (SWOT, Porter's) suggest smaller firms. Branded/proprietary IP suggests Big 4/GSI scale.",
   driver_data_scope:
@@ -54,7 +55,7 @@ export const TOOLTIPS = {
 
   // ── Module 3: Target Scale ───────────────────────────────────────────────
   section_target_scale:
-    "Determines the intended organizational audience — startup (agile/MVP), SME (balanced), or enterprise (governance/compliance-heavy).",
+    "Gemini determines the intended organizational audience — startup (agile/MVP), SME (balanced), or enterprise (governance/compliance-heavy).",
   driver_governance:
     "Mentions of teams (low complexity) vs. steering committees/board approval (high complexity) indicate target organization size.",
   driver_cross_functional:
@@ -68,7 +69,7 @@ export const TOOLTIPS = {
 
   // ── Module 4: Audience Level ─────────────────────────────────────────────
   section_audience_level:
-    "Identifies the ideal reader based on strategic vs. tactical ratio, financial metrics, technical jargon, and decision scope.",
+    "Gemini identifies the ideal reader based on strategic vs. tactical ratio, financial metrics, technical depth, and decision scope.",
   driver_strategic_tactical:
     "Implementation details and how-to content targets developers/managers. Market impact and ROI discussions target VP/C-suite.",
   driver_financial_metric:
@@ -82,7 +83,7 @@ export const TOOLTIPS = {
 
   // ── Module 5: Rarity Index ───────────────────────────────────────────────
   section_rarity_index:
-    "Measures content uniqueness. Commodity = widely available insights. Differentiated = some original value. Category-Defining = truly novel.",
+    "Gemini evaluates content uniqueness by comparing against its knowledge of common industry content. Commodity = widely available. Category-Defining = genuinely novel.",
   driver_primary_data:
     "Aggregated secondary sources (low originality) vs. proprietary experiments, surveys, or primary research (high originality).",
   driver_contrarian_factor:
@@ -96,25 +97,25 @@ export const TOOLTIPS = {
 
   // ── Content Forensics ────────────────────────────────────────────────────
   section_forensics:
-    "Detects linguistic manipulation, logical fallacies, and content padding. These modules verify the credibility of the document's claims.",
+    "Hybrid analysis: heuristic engine counts manipulative patterns (weasel words, puffery, urgency), then Gemini judges the overall manipulation severity and detects logical fallacies that require understanding argument structure.",
   manipulation_index:
-    "Combined score (0-100) measuring weasel words, percentage puffery, false urgency, passive voice distancing, and jargon masking. Scores >40 are flagged.",
+    "Hybrid score (0-100): heuristic counts weasel words, puffery, urgency, passive voice, and jargon. Gemini then judges overall manipulation severity considering not just quantity but context and intent. Scores >40 are flagged.",
   weasel_words:
-    "Accountability-destroying phrases like 'arguably', 'up to', 'may contribute' that transform claims into unfalsifiable statements.",
+    "Heuristic detection: accountability-destroying phrases like 'arguably', 'up to', 'may contribute' that transform claims into unfalsifiable statements.",
   percentage_puffery:
-    "Metrics without baselines — e.g., '300% growth' could mean going from 1 user to 4 users. Creates illusion of scale.",
+    "Heuristic detection: metrics without baselines — e.g., '300% growth' could mean going from 1 user to 4 users. Creates illusion of scale.",
   false_urgency:
-    "Artificial time pressure like 'window is closing' or 'act now' that triggers emotional decision-making over rational analysis.",
+    "Heuristic detection: artificial time pressure like 'window is closing' or 'act now' that triggers emotional decision-making over rational analysis.",
   jargon_masking:
-    "Complex phrases concealing simple ideas — e.g., 'synergistic paradigm shift' instead of 'working together differently'.",
+    "Heuristic detection: complex phrases concealing simple ideas — e.g., 'synergistic paradigm shift' instead of 'working together differently'.",
   passive_voice:
-    "Responsibility obscuration — 'mistakes were made' instead of 'we failed'. Shields accountability for negative outcomes.",
+    "Heuristic detection: responsibility obscuration — 'mistakes were made' instead of 'we failed'. Shields accountability for negative outcomes.",
 
   // ── Logical Fallacies ────────────────────────────────────────────────────
   section_fallacies:
-    "Detects common reasoning errors that undermine document credibility. Each fallacy is categorized by type and severity.",
+    "Gemini-powered detection of logical reasoning errors. Unlike keyword matching, AI understands argument structure to identify straw man arguments, false dichotomies, and other fallacies in context.",
   fallacy_density:
-    "Number of logical fallacies per 1,000 words. Higher density indicates weaker logical foundations in the document.",
+    "Number of AI-detected logical fallacies per 1,000 words. Higher density indicates weaker logical foundations in the document.",
   fallacy_straw_man:
     "Attacking weakened versions of competitor arguments rather than their actual positions.",
   fallacy_false_dichotomy:
@@ -128,131 +129,131 @@ export const TOOLTIPS = {
 
   // ── Fluff Index ──────────────────────────────────────────────────────────
   section_fluff:
-    "Quantifies readability complexity relative to substantive value. High fluff = lots of words, little information.",
+    "Fully heuristic analysis: quantifies readability complexity relative to substantive value using mathematical formulas (Gunning Fog) and pattern counting. No AI judgment needed — pure computation.",
   fluff_score:
-    "Combined score (0-100) from Gunning Fog Index, adjective/verb ratio, and unique data points. >60 = low information density.",
+    "Heuristic score (0-100) from Gunning Fog Index, adjective/verb ratio, and unique data points. >60 = low information density.",
   fog_index:
-    "Gunning Fog Index — estimates years of education needed to understand the text. >18 = academic paper level, <12 = accessible.",
+    "Gunning Fog Index — mathematical formula estimating years of education needed to understand the text. >18 = academic paper level, <12 = accessible.",
   adjective_verb_ratio:
-    "Ratio of descriptive words to action words. Higher ratio means more description than substance. >3 = excessive.",
+    "Heuristic ratio of descriptive words to action words. Higher ratio means more description than substance. >3 = excessive.",
   unique_data_points:
-    "Count of concrete, verifiable numbers, percentages, and dates in the document. More data points = more substantive content.",
+    "Heuristic count of concrete, verifiable numbers, percentages, and dates in the document. More data points = more substantive content.",
   buzzwords:
-    "Marketing-oriented words like 'synergy', 'leverage', 'cutting-edge' that add perceived sophistication without real meaning.",
+    "Heuristic detection against a curated dictionary of ~80 marketing buzzwords. Count indicates impression-over-information tendency.",
   action_verbs:
-    "Concrete action words like 'implement', 'deploy', 'configure' that indicate practical, actionable content.",
+    "Heuristic detection against a curated dictionary of ~60 implementation verbs. Higher counts indicate more practical, actionable content.",
 
   // ── Implementation Readiness ─────────────────────────────────────────────
   section_implementation:
-    "Measures the gap between conceptual description and executable implementation. Can you actually DO what the document describes?",
+    "Gemini evaluates the gap between conceptual description and executable implementation. AI assesses whether artifacts, timelines, and resources are genuine or superficial.",
   readiness_score:
-    "Combined score (1-10) from artifact presence (30%), resource clarity (25%), timeline reality (25%), and prerequisite checks (20%).",
+    "AI-generated score (1-10) from artifact presence (30%), resource clarity (25%), timeline reality (25%), and prerequisite checks (20%).",
   artifact_presence:
-    "Checks for code snippets, config files, checklists, architecture diagrams, templates, and API definitions.",
+    "Gemini checks for code snippets, config files, checklists, architecture diagrams, templates, and API definitions — assessing quality, not just presence.",
   resource_clarity:
-    "Are specific roles defined? (e.g., 'need 1 Data Engineer with 3+ years') vs. vague references to 'resources needed'.",
+    "AI assessment: are specific roles defined? (e.g., 'need 1 Data Engineer with 3+ years') vs. vague references to 'resources needed'.",
   timeline_reality:
-    "Estimated timelines with specific dates/durations vs. vague references like 'future state' or 'when ready'.",
+    "AI assessment: are timelines specific and realistic, or vague ('future state', 'when ready')? Gemini can judge if timelines are realistic for the scope.",
   prerequisite_check:
-    "Clear statement of starting requirements (e.g., 'requires clean data lake') vs. no mention of prerequisites.",
+    "AI assessment: are starting requirements clearly stated, or does the document assume everything is ready?",
 
   // ── Obsolescence Risk ────────────────────────────────────────────────────
   section_obsolescence:
-    "Identifies outdated technology recommendations in the rapidly evolving AI landscape. References >12 months old as 'cutting edge' are flagged.",
+    "Gemini identifies outdated technology recommendations using its knowledge of the current technology landscape. More accurate than static keyword lists for fast-moving fields.",
   outdated_references:
-    "Technologies mentioned that are no longer current best practice — e.g., recommending traditional RPA without agentic enhancements in 2026.",
+    "AI-detected technologies that are no longer current best practice — Gemini knows what's outdated in 2026, not just what's on a static list.",
   missing_current_practices:
-    "Important current technologies not mentioned — e.g., absence of agentic AI, vector databases, or RAG in an AI document.",
+    "AI-detected gaps: important current technologies not mentioned. Gemini knows what should be discussed in a modern document on the topic.",
 
   // ── Hype vs Reality ──────────────────────────────────────────────────────
   section_hype:
-    "Detects unrealistic optimism and identifies balanced, credible analysis. 90%+ positive with zero risk mentions = 'Sales Propaganda'.",
+    "Gemini meta-analysis using all prior findings to judge whether the document is balanced, optimistic, or sales propaganda. Considers deception, bias, and sentiment in context.",
   hype_score:
-    "Optimism score (0-100). Optimal credibility range is 60-80% positive. >80 = potentially unrealistic.",
+    "AI-generated optimism score (0-100). Optimal credibility range is 60-80% positive. >80 = potentially unrealistic.",
   positive_sentiment:
-    "Percentage of positive/promotional language vs. balanced or cautionary language. Very high % with no risk mentions is a red flag.",
+    "AI-measured percentage of positive/promotional language vs. balanced or cautionary language.",
   risk_mentions:
-    "Count of risk, challenge, limitation, and failure references. Credible documents acknowledge what could go wrong.",
+    "AI count of risk, challenge, limitation, and failure references. Credible documents acknowledge what could go wrong.",
   failure_acknowledgments:
-    "Presence of 'Why this might fail' or 'Key Risks' sections. These dramatically increase document credibility.",
+    "AI detection of 'Why this might fail' or 'Key Risks' sections. These dramatically increase document credibility.",
 
   // ── Regulatory & Ethics ──────────────────────────────────────────────────
   section_regulatory:
-    "Identifies compliance risks and ethical concerns. AI implementations without regulatory or ethical frameworks are flagged.",
+    "Hybrid: heuristic engine finds regulatory/ethical/privacy keyword mentions, then Gemini judges the safety level and identifies contextual red flags that keyword matching alone would miss.",
   safety_score:
-    "Combined score (0-100) from regulatory mentions, ethical considerations, privacy protections, and absence of red flags.",
+    "Hybrid score (0-100): heuristic counts regulatory mentions, Gemini judges whether the document's proposals have adequate compliance coverage.",
   regulatory_mentions:
-    "References to frameworks like GDPR, EU AI Act, CCPA, SOC2 that indicate regulatory awareness.",
+    "Heuristic detection: references to GDPR, EU AI Act, CCPA, SOC2, HIPAA, ISO 27001.",
   ethical_mentions:
-    "References to bias mitigation, fairness, transparency, and responsible AI practices.",
+    "Heuristic detection: references to bias mitigation, fairness, transparency, and responsible AI practices.",
   red_flags_safety:
-    "Critical omissions like proposing data scraping without compliance mentions, or AI without bias assessment.",
+    "Gemini-detected: critical omissions like proposing data scraping without compliance, or AI deployment without bias assessment. Requires contextual understanding.",
 
   // ── Composition ──────────────────────────────────────────────────────────
   section_composition:
-    "Evaluates the document's presentation format — balance of visuals vs. text, and density of quantitative evidence.",
+    "Evaluates document presentation format. Visual Intensity uses Gemini multimodal (sees actual page images). Data Intensity uses heuristic pattern counting.",
   visual_intensity:
-    "Score (1-10) measuring diagram-to-text ratio, color coding, and infographic density. High = great for presentations, possibly shallow.",
+    "Gemini multimodal score (1-10): AI examines actual PDF page images to see charts, diagrams, infographics, and formatting. Not limited to text keyword references — can see captionless visuals.",
   data_intensity:
-    "Score (1-10) measuring tables, citations, and statistical density. High = strong credibility, possibly difficult for general audiences.",
+    "Heuristic score (1-10) measuring tables, citations, and statistical density through pattern matching. Deterministic and consistent.",
   diagrams:
-    "Count of diagram, chart, graph, and figure references. More diagrams suggest better visual communication.",
+    "Gemini multimodal count: AI sees and counts actual visual elements in page images, including charts without captions.",
   citations:
-    "Count of academic-style citations and source references. More citations indicate greater research rigor.",
+    "Heuristic count of academic-style citations and source references using pattern matching.",
   tables:
-    "Count of table references. Tables provide structured quantitative evidence.",
+    "Heuristic count of table references and structured data patterns.",
   statistics:
-    "Count of specific numerical claims, percentages, and financial figures in the document.",
+    "Heuristic count of specific numerical claims, percentages, and financial figures in the document.",
 
   // ── Bias Detection ───────────────────────────────────────────────────────
   section_bias:
-    "Identifies five key cognitive biases that undermine document credibility: confirmation, survival, selection, recency, and authority bias.",
+    "Gemini-powered detection of five cognitive biases. AI understands what evidence is being selectively presented, unlike keyword matching which can only detect surface patterns.",
   overall_bias_score:
-    "Combined bias score (0-100). Higher = more biased. Based on severity-weighted detection of all bias types.",
+    "AI-generated bias score (0-100). Gemini evaluates evidence selectivity, narrative framing, and argument balance to assess overall bias.",
   bias_confirmation:
-    "Only presenting successful case studies without failures. Creates unrealistic success expectations.",
+    "AI-detected: only presenting successful case studies without failures. Gemini understands the narrative structure, not just word counts.",
   bias_survival:
-    "Ignoring failed projects in sector analysis. Overestimates success probability by only showing survivors.",
+    "AI-detected: ignoring failed projects in sector analysis. Gemini recognizes when only 'winners' are discussed.",
   bias_selection:
-    "Cherry-picked data supporting predetermined conclusions. Misleads about general applicability.",
+    "AI-detected: cherry-picked data supporting predetermined conclusions. Gemini can identify when examples are strategically chosen.",
   bias_recency:
-    "Over-weighting recent events/trends while ignoring cyclical patterns and historical context.",
+    "AI-detected: over-weighting recent events while ignoring historical patterns. Gemini provides temporal context awareness.",
   bias_authority:
-    "Over-reliance on expert opinions (Gartner, Forrester) without independent empirical validation.",
+    "AI-detected: over-reliance on expert opinions without independent empirical validation.",
 
   // ── Key Findings ─────────────────────────────────────────────────────────
   section_findings:
-    "Extracts the most notable claims from the document — particularly contrarian insights and specific quantified claims that can be verified.",
+    "Gemini extracts genuinely surprising and noteworthy findings using comprehension, not just pattern matching. AI understands what's novel vs. obvious in the document's domain.",
   contrarian_tag:
-    "This finding contradicts conventional wisdom, making it potentially more valuable if well-supported.",
+    "AI-identified: this finding contradicts conventional wisdom, making it potentially more valuable if well-supported.",
   quantified_tag:
-    "This finding includes specific numbers or data that can be independently verified.",
+    "AI-identified: this finding includes specific numbers or data that can be independently verified.",
 
   // ── Section Headers ──────────────────────────────────────────────────────
   header_core_modules:
-    "Five weighted decision modules that classify the document across strategic dimensions: who it serves, who wrote it, who it's for, and how unique it is.",
+    "Gemini classifies the document across five strategic dimensions: who it serves, who wrote it, who it's for, and how unique it is. Informed by forensic analysis from prior layers.",
   header_forensics:
-    "Linguistic and logical analysis that detects manipulation, logical fallacies, and content padding to verify credibility.",
+    "Hybrid analysis: heuristic engine counts patterns, Gemini judges severity and detects logical fallacies requiring argument comprehension.",
   header_advanced:
-    "Additional assessment modules: implementation readiness, technology currency, optimism balance, and regulatory compliance.",
+    "Gemini-powered assessment: implementation readiness, technology currency, optimism balance, and regulatory compliance — all requiring contextual AI judgment.",
   header_composition:
-    "Document composition analysis including visual/data balance, cognitive bias detection, and extraction of key findings.",
+    "Mixed analysis: Gemini multimodal for visuals, heuristic for data density, Gemini for bias detection and key findings extraction.",
 
   // ── Home Page Feature Pills ──────────────────────────────────────────────
   pill_provider_consumer:
-    "Detects whether a document serves the vendor's revenue interests or empowers the reader with actionable knowledge.",
+    "Gemini AI detects whether a document serves the vendor's revenue interests or empowers the reader with actionable knowledge.",
   pill_decision_modules:
-    "Five weighted scoring modules analyze the document across strategic dimensions using quantitative driver matrices.",
+    "Five AI-powered scoring modules classify the document across strategic dimensions using weighted driver analysis informed by forensic pre-analysis.",
   pill_content_forensics:
-    "Detects weasel words, percentage puffery, false urgency, jargon masking, and logical fallacies in the text.",
+    "Hybrid engine: heuristic counts weasel words, puffery, urgency, and jargon. Gemini judges manipulation severity and detects logical fallacies.",
   pill_bias_detection:
-    "Identifies confirmation, survival, selection, recency, and authority biases that undermine credibility.",
+    "Gemini AI identifies confirmation, survival, selection, recency, and authority biases by understanding argument structure and evidence selectivity.",
   pill_hype_reality:
-    "Measures the balance between promotional optimism and honest risk acknowledgment.",
+    "Gemini meta-analysis measuring the balance between promotional optimism and honest risk acknowledgment, informed by all prior analysis layers.",
   pill_implementation:
-    "Scores whether the document provides executable artifacts (code, configs, checklists) or is purely theoretical.",
+    "Gemini evaluates whether the document provides genuine executable guidance or is purely theoretical, assessing artifact quality and timeline realism.",
   pill_weighted_scoring:
-    "All modules use the weighted composite formula: Score = Σ(rating × weight) / n, ensuring consistent quantifiable assessment.",
+    "All modules use weighted composite scoring. Heuristic provides hard numbers; Gemini provides judgment scores. Both feed into the final weighted result.",
 } as const;
 
 /**

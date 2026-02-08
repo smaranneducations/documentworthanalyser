@@ -1,6 +1,8 @@
 # Gemini Prompting Strategy — DocDetector
 
-This document describes the full architecture for integrating Google Gemini 1.5 Flash into DocDetector's document analysis pipeline, replacing and augmenting the current heuristic engine.
+> **Status:** IMPLEMENTED. This document describes the architecture of the Gemini integration that is now live in production. The 5-layer analysis pipeline is fully operational using Gemini 2.0 Flash. Additionally, a comment auto-reply system using Gemini is implemented for the discussion feature.
+
+This document describes the full architecture of Google Gemini's integration into DocDetector's document analysis pipeline, working alongside the heuristic engine.
 
 ---
 
@@ -17,7 +19,8 @@ This document describes the full architecture for integrating Google Gemini 1.5 
 9. [Visual & Multimodal Analysis](#visual--multimodal-analysis)
 10. [Error Handling & Fallback](#error-handling--fallback)
 11. [Cost Estimation](#cost-estimation)
-12. [Future: Migration to Vertex AI](#future-migration-to-vertex-ai)
+12. [Comment Auto-Reply System](#comment-auto-reply-system)
+13. [Future: Migration to Vertex AI](#future-migration-to-vertex-ai)
 
 ---
 
@@ -355,7 +358,7 @@ To stay within Gemini free tier (15 RPM) while maintaining quality:
 `pdfjs-dist` extracts text only. A PDF with 15 infographics but no captions gets Visual Intensity: 1/10.
 
 ### The Solution
-Gemini 1.5 Flash is multimodal. We send PDF pages as images alongside the text.
+Gemini 2.0 Flash is multimodal. We send PDF pages as images alongside the text.
 
 ### Implementation
 1. Convert PDF pages to images (canvas rendering via pdfjs-dist)
@@ -389,7 +392,7 @@ Images are ~260 tokens per 256x256 tile. A typical PDF page at reasonable resolu
 
 ## Cost Estimation
 
-### Per Document (Gemini 1.5 Flash)
+### Per Document (Gemini 2.0 Flash)
 
 | Component | Input Tokens | Output Tokens | Cost |
 |-----------|-------------|---------------|------|
@@ -408,6 +411,33 @@ At $0.007 per document:
 - 15 requests per minute, 1 million tokens per minute
 - At 4 calls per document, you can analyze ~3-4 documents per minute on free tier
 - Sufficient for development and early production
+
+---
+
+## Comment Auto-Reply System
+
+In addition to the document analysis pipeline, Gemini is used to generate instant auto-replies to user comments in the discussion panels.
+
+### How It Works
+
+When a user posts a comment (anonymous or starred) on any report section:
+
+1. **Context Assembly:** The system gathers the full document text, the complete analysis result from Firestore, and all existing comments in that section.
+2. **Classification:** Gemini first classifies the comment into one of 5 categories:
+   - **Appreciative** — User is praising or thanking
+   - **Abusive** — User is being hostile or inappropriate
+   - **Question** — User is asking for clarification or more information
+   - **Suggestion** — User is proposing an improvement or alternative view
+   - **Contesting** — User is disputing a finding or score
+3. **Response Generation:** Based on the category, Gemini generates a polite, authoritative reply of approximately 40 words or less.
+4. **Escalation Fallback:** If Gemini determines it cannot adequately answer (e.g. the question requires domain expertise beyond the document), it returns `can_answer: false` along with an `escalation_summary` (~300 words) explaining what the user asked and why the AI couldn't respond. This triggers an admin email notification.
+
+### Implementation
+
+- **Function:** `generateCommentReply()` in `src/lib/gemini.ts`
+- **Called from:** `ReportClient.tsx` after every comment is stored
+- **Auto-reply posted as:** A system comment with `user_name: "DocDetector"`, `is_auto_reply: true`
+- **Email escalation:** Handled by the `onCommentCreated` Cloud Function which checks for `escalation_summary` in auto-reply comments
 
 ---
 

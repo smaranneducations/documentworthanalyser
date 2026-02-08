@@ -28,6 +28,8 @@ import {
 } from "@/lib/firebase";
 import { findFuzzyMatches } from "@/lib/fuzzy-match";
 import type { MatchInfo } from "@/components/UploadGatekeeper";
+import UserMenu from "@/components/UserMenu";
+import { useAuth } from "@/lib/auth";
 
 // ── Rejection Modal ─────────────────────────────────────────────────────
 function RejectionModal({
@@ -243,19 +245,28 @@ function PreviouslyAssessed({
 
 export default function HomePage() {
   const router = useRouter();
+  const { user, email, uid } = useAuth();
   const [recentAnalyses, setRecentAnalyses] = useState<AnalysisDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectionModal, setRejectionModal] = useState<FitnessResult | null>(null);
   const [platformStats, setPlatformStats] = useState({ totalFiles: 0, totalWords: 0 });
+  const [showOnlyMine, setShowOnlyMine] = useState(false);
 
-  // Load analyses + platform stats from Firestore on mount
+  // Load analyses + platform stats from Firestore (re-run when auth state changes)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [analyses, stats] = await Promise.all([getAllAnalyses(20), getPlatformStats()]);
+        const [allAnalyses, stats] = await Promise.all([
+          getAllAnalyses(50),
+          getPlatformStats(),
+        ]);
         if (!cancelled) {
-          setRecentAnalyses(analyses);
+          // Filter list: show public files + current user's own private files
+          const visible = allAnalyses.filter(
+            (a) => a.visibility !== "private" || a.uploader_uid === uid
+          );
+          setRecentAnalyses(visible.slice(0, 20));
           setPlatformStats(stats);
         }
       } catch (err) {
@@ -265,7 +276,12 @@ export default function HomePage() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [uid]);
+
+  // Derive the displayed list based on the "Show only my files" toggle
+  const displayedAnalyses = showOnlyMine && uid
+    ? recentAnalyses.filter((a) => a.uploader_uid === uid)
+    : recentAnalyses;
 
   const handleCheckHash = useCallback(async (hash: string): Promise<MatchInfo | null> => {
     // 1. Exact hash match
@@ -316,7 +332,7 @@ export default function HomePage() {
   const docSummariesRef = useCallback(() => ({ current: [] as Awaited<ReturnType<typeof getAllDocSummaries>> }), [])();
 
   const handleAnalyze = useCallback(
-    async (file: File, hash: string): Promise<string> => {
+    async (file: File, hash: string, isPrivate: boolean): Promise<string> => {
       const useGemini = isGeminiAvailable();
       console.log(`[0] Analysis mode: ${useGemini ? "GEMINI + Heuristic" : "Heuristic Only"}`);
 
@@ -407,6 +423,9 @@ export default function HomePage() {
         doc_summary: docMetadata.summary,
         analysis_result: result,
         pdf_highlights: pdfHighlightsRaw as { headline: string; hook_findings: { section: string; title: string; insight: string; hook_score: number }[] } | undefined,
+        visibility: isPrivate ? "private" : "public",
+        uploader_uid: uid ?? null,
+        uploader_email: email ?? null,
       });
       console.log("[6/7] Done. Firestore doc ID:", id);
 
@@ -419,19 +438,22 @@ export default function HomePage() {
         console.warn("[6.5/7] Storage upload failed (non-blocking):", err);
       }
 
-      // Refresh the list from Firestore
+      // Refresh the list from Firestore (apply same visibility filter)
       console.log("[7/7] Refreshing recent analyses…");
       try {
-        const analyses = await getAllAnalyses(20);
-        setRecentAnalyses(analyses);
-        console.log("[7/7] Done. Count:", analyses.length);
+        const allAnalyses = await getAllAnalyses(50);
+        const visible = allAnalyses.filter(
+          (a) => a.visibility !== "private" || a.uploader_uid === uid
+        );
+        setRecentAnalyses(visible.slice(0, 20));
+        console.log("[7/7] Done. Count:", visible.length);
       } catch {
         console.warn("[7/7] Refresh failed (non-blocking)");
       }
 
       return id;
     },
-    [fitnessMetaRef, docSummariesRef]
+    [fitnessMetaRef, docSummariesRef, uid, email]
   );
 
   const handleViewReport = useCallback(
@@ -475,10 +497,11 @@ export default function HomePage() {
               <BookOpen className="h-3.5 w-3.5 text-blue-400" />
               Assessment Rules
             </Link>
-            <span className="flex items-center gap-2 text-xs text-zinc-500">
+            <span className="hidden md:flex items-center gap-2 text-xs text-zinc-500">
               <Sparkles className="h-3.5 w-3.5" />
               5-Layer AI Pipeline
             </span>
+            <UserMenu />
           </div>
         </div>
       </header>
@@ -542,6 +565,7 @@ export default function HomePage() {
             onCheckHash={handleCheckHash}
             onAnalyze={handleAnalyze}
             onViewReport={handleViewReport}
+            isLoggedIn={!!user}
           />
         </div>
 
@@ -586,10 +610,27 @@ export default function HomePage() {
           </a>
         </div>
 
+        {/* ── "Show only my files" toggle ──────────────────────── */}
+        {user && recentAnalyses.length > 0 && (
+          <div className="flex items-center justify-end mb-3">
+            <button
+              onClick={() => setShowOnlyMine(!showOnlyMine)}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                showOnlyMine
+                  ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                  : "text-zinc-500 border border-zinc-800 hover:text-zinc-300 hover:border-zinc-600"
+              }`}
+            >
+              <span className={`inline-block h-2.5 w-2.5 rounded-full transition-colors ${showOnlyMine ? "bg-blue-400" : "bg-zinc-600"}`} />
+              Show only my files
+            </button>
+          </div>
+        )}
+
         {/* ── Previously Assessed (collapsed) ─────────────────── */}
         <PreviouslyAssessed
           loading={loading}
-          analyses={recentAnalyses}
+          analyses={displayedAnalyses}
           getScoreColor={getScoreColor}
           getScoreBg={getScoreBg}
           onView={(id) => router.push(`/report/${id}`)}

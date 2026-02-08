@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import SHA256 from "crypto-js/sha256";
 import WordArray from "crypto-js/lib-typedarrays";
 import {
@@ -11,7 +11,11 @@ import {
   Loader2,
   ArrowRight,
   RotateCcw,
+  Lock,
+  Globe,
+  LogIn,
 } from "lucide-react";
+import Link from "next/link";
 import type { FuzzyMatch } from "@/lib/fuzzy-match";
 
 export interface MatchInfo {
@@ -23,9 +27,11 @@ interface UploadGatekeeperProps {
   /** Called after hashing. Returns exact + fuzzy matches (non-blocking info). */
   onCheckHash: (hash: string) => Promise<MatchInfo | null>;
   /** Called to analyze the file. Returns the report ID. */
-  onAnalyze: (file: File, hash: string) => Promise<string>;
+  onAnalyze: (file: File, hash: string, isPrivate: boolean) => Promise<string>;
   /** Called when user wants to view an existing report. */
   onViewReport: (id: string) => void;
+  /** Whether the current user is logged in */
+  isLoggedIn: boolean;
 }
 
 type Stage = "idle" | "hashing" | "checking" | "matched" | "uploading" | "done" | "error";
@@ -34,6 +40,7 @@ export default function UploadGatekeeper({
   onCheckHash,
   onAnalyze,
   onViewReport,
+  isLoggedIn,
 }: UploadGatekeeperProps) {
   const [stage, setStage] = useState<Stage>("idle");
   const [file, setFile] = useState<File | null>(null);
@@ -42,6 +49,7 @@ export default function UploadGatekeeper({
   const [errorMsg, setErrorMsg] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [reportId, setReportId] = useState<string | null>(null);
+  const [isPrivate, setIsPrivate] = useState(isLoggedIn);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
@@ -71,12 +79,17 @@ export default function UploadGatekeeper({
     });
   }, []);
 
+  // Sync private toggle with login state: private when logged in, public when not
+  useEffect(() => {
+    setIsPrivate(isLoggedIn);
+  }, [isLoggedIn]);
+
   /** Run the analysis pipeline */
   const runAnalysis = useCallback(
     async (f: File, hash: string) => {
       setStage("uploading");
       try {
-        const id = await onAnalyze(f, hash);
+        const id = await onAnalyze(f, hash, isPrivate);
         setReportId(id);
         setStage("done");
         setTimeout(() => onViewReport(id), 300);
@@ -91,7 +104,7 @@ export default function UploadGatekeeper({
         setErrorMsg(`Analysis failed: ${msg}`);
       }
     },
-    [onAnalyze, onViewReport]
+    [onAnalyze, onViewReport, isPrivate]
   );
 
   const processFile = useCallback(
@@ -180,46 +193,93 @@ export default function UploadGatekeeper({
     <div className="w-full">
       {/* ── Idle / Drop Zone ─────────────────────────────────────────── */}
       {(stage === "idle" || stage === "error") && (
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
-          className={`
-            relative cursor-pointer rounded-xl border-2 border-dashed px-8 py-7
-            transition-all duration-200 text-center
-            ${
-              dragOver
-                ? "border-blue-500 bg-blue-500/10"
-                : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500 hover:bg-zinc-900"
-            }
-          `}
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".pdf,.txt,.md,.docx"
-            className="hidden"
-            onChange={handleChange}
-            aria-label="Upload document"
-          />
-          <Upload className="mx-auto mb-2.5 h-8 w-8 text-zinc-500" />
-          <p className="text-sm font-semibold text-zinc-300">
-            Drop your document here or click to browse
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Supports PDF, TXT, MD, DOCX &mdash; Max 10 MB
-          </p>
-          {stage === "error" && (
-            <div className="mt-3 flex items-center justify-center gap-2 text-red-400 text-xs">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              {errorMsg}
+        <>
+          {/* Login prompt for anonymous users / Private toggle for logged-in */}
+          {!isLoggedIn ? (
+            <div className="mb-3 flex items-center justify-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-2.5">
+              <Lock className="h-3.5 w-3.5 text-zinc-500" />
+              <span className="text-xs text-zinc-400">
+                To assess private files,{" "}
+                <Link href="/login" className="text-blue-400 hover:text-blue-300 font-semibold underline underline-offset-2 cursor-pointer">
+                  please login
+                </Link>
+              </span>
+            </div>
+          ) : (
+            <div className="mb-3 flex items-center justify-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-2.5">
+              <button
+                type="button"
+                onClick={() => setIsPrivate(false)}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                  !isPrivate
+                    ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <Globe className="h-3.5 w-3.5" />
+                Public
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPrivate(true)}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                  isPrivate
+                    ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                    : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                <Lock className="h-3.5 w-3.5" />
+                Private
+              </button>
+              {isPrivate && (
+                <span className="text-[11px] text-amber-500/80">
+                  Only you will see this file
+                </span>
+              )}
             </div>
           )}
-        </div>
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => inputRef.current?.click()}
+            className={`
+              relative cursor-pointer rounded-xl border-2 border-dashed px-8 py-7
+              transition-all duration-200 text-center
+              ${
+                dragOver
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-zinc-700 bg-zinc-900/50 hover:border-zinc-500 hover:bg-zinc-900"
+              }
+            `}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".pdf,.txt,.md,.docx"
+              className="hidden"
+              onChange={handleChange}
+              aria-label="Upload document"
+            />
+            <Upload className="mx-auto mb-2.5 h-8 w-8 text-zinc-500" />
+            <p className="text-sm font-semibold text-zinc-300">
+              Drop your document here or click to browse
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Supports PDF, TXT, MD, DOCX &mdash; Max 10 MB
+            </p>
+            {stage === "error" && (
+              <div className="mt-3 flex items-center justify-center gap-2 text-red-400 text-xs">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                {errorMsg}
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* ── Hashing / Checking spinner ────────────────────────────────── */}

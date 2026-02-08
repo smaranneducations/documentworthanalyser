@@ -317,3 +317,114 @@ export function isGeminiAvailable(): boolean {
   const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   return !!key && key !== "PASTE_YOUR_KEY_HERE";
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Gemini Comment Auto-Reply
+// Classifies comment intent & generates a concise response
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface CommentAutoReply {
+  category: "appreciative" | "abusive" | "question" | "suggestion" | "contesting";
+  reply: string;           // ~40 words max
+  can_answer: boolean;     // false → escalate to admin
+  escalation_summary: string | null; // max ~300 words explaining why it can't answer + context
+}
+
+export async function generateCommentReply(params: {
+  fileName: string;
+  docSummary: string;
+  analysisResultJson: string;   // stringified analysis result
+  sectionRef: string;           // which section the comment is on
+  existingComments: { user_name: string; text: string; is_auto_reply: boolean }[];
+  newCommentText: string;
+  newCommentUser: string;
+}): Promise<CommentAutoReply> {
+  const client = getClient();
+
+  // Truncate analysis to stay within context limits
+  const analysisSnippet = params.analysisResultJson.slice(0, 30000);
+
+  const prompt = `You are DocDetector's AI assistant responding to a user comment on a forensic document analysis report.
+
+=== DOCUMENT ===
+File: ${params.fileName}
+Summary: ${params.docSummary}
+
+=== ANALYSIS RESULT (JSON excerpt) ===
+${analysisSnippet}
+
+=== SECTION BEING DISCUSSED ===
+${params.sectionRef}
+
+=== EXISTING COMMENTS IN THIS THREAD ===
+${params.existingComments.map(c => `[${c.is_auto_reply ? "DocDetector" : c.user_name}]: ${c.text}`).join("\n") || "(no prior comments)"}
+
+=== NEW COMMENT ===
+[${params.newCommentUser}]: ${params.newCommentText}
+
+=== YOUR TASK ===
+
+1. Classify the comment into exactly ONE category:
+   - "appreciative" — the user is thanking, praising, or expressing satisfaction
+   - "abusive" — the user is rude, offensive, or using inappropriate language
+   - "question" — the user is asking for clarification or more detail
+   - "suggestion" — the user is proposing an improvement or alternative perspective
+   - "contesting" — the user is disagreeing with or challenging the analysis finding
+
+2. Generate a reply (max 40 words):
+   - Be polite but authoritative
+   - Reference the actual analysis data when possible
+   - For "abusive": politely decline to engage but stay professional
+   - For "appreciative": brief warm acknowledgment
+   - For "question"/"suggestion"/"contesting": address it using the analysis data
+
+3. If you genuinely cannot provide a proper, helpful answer based on the analysis data:
+   - Set can_answer to false
+   - Write "I appreciate your input. I'm unable to fully address this and will pass your comment to the admin for review." as the reply
+   - Provide an escalation_summary (max 300 words) explaining: what the user asked, why you can't answer, relevant context from the analysis, and what the admin should look at
+
+Respond with ONLY valid JSON:
+{
+  "category": "appreciative|abusive|question|suggestion|contesting",
+  "reply": "your 40-word-max response",
+  "can_answer": true/false,
+  "escalation_summary": null or "max 300 word summary for admin"
+}`;
+
+  try {
+    const response = await client.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        systemInstruction: "You are DocDetector, an AI forensic document analysis assistant. You respond to user comments on analysis reports. Be concise, polite, and authoritative. Always return valid JSON.",
+        temperature: 0.3,
+        maxOutputTokens: 1000,
+      },
+    });
+
+    const text = response.text ?? "";
+    const jsonStr = text
+      .replace(/^```json\s*/i, "")
+      .replace(/^```\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+    const parsed = JSON.parse(jsonStr) as CommentAutoReply;
+
+    // Ensure the reply isn't too long
+    const words = parsed.reply.split(/\s+/);
+    if (words.length > 50) {
+      parsed.reply = words.slice(0, 45).join(" ") + "…";
+    }
+
+    return parsed;
+  } catch (err) {
+    console.error("[Gemini] Comment auto-reply failed:", err);
+    // Fallback — don't block the user experience
+    return {
+      category: "question",
+      reply: "Thank you for your comment. I'll pass this along to the admin for a detailed review.",
+      can_answer: false,
+      escalation_summary: `Auto-reply generation failed. User comment: "${params.newCommentText}" on section "${params.sectionRef}" of file "${params.fileName}". Please review manually.`,
+    };
+  }
+}

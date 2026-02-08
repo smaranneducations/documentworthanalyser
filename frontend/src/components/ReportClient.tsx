@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, FileText, Calendar, Printer, XCircle,
 } from "lucide-react";
@@ -13,6 +13,8 @@ import {
   addComment as storeComment,
   reactToComment,
 } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth";
+import { generateCommentReply, isGeminiAvailable } from "@/lib/gemini";
 
 // ── Slide sub-components ────────────────────────────────────────────
 import ReportHero from "@/components/report/ReportHero";
@@ -22,17 +24,22 @@ import ReportAdvanced from "@/components/report/ReportAdvanced";
 import ReportInsights from "@/components/report/ReportInsights";
 import ReportPrintPage from "@/components/report/ReportPrintPage";
 import ReportPrintHighlights from "@/components/report/ReportPrintHighlights";
+import UserMenu from "@/components/UserMenu";
 
 interface SectionPanel { name: string; ref: string }
 
 export default function ReportClient({ id: propId }: { id: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { uid, loading: authLoading } = useAuth();
 
   const [id, setId] = useState<string>(propId);
   const [analysis, setAnalysis] = useState<AnalysisDoc | null>(null);
   const [comments, setComments] = useState<CommentDoc[]>([]);
   const [commentPanel, setCommentPanel] = useState<SectionPanel | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const discussAutoOpened = useRef(false);
 
   // Step 1: Extract the real ID from window.location on mount
   useEffect(() => {
@@ -48,14 +55,21 @@ export default function ReportClient({ id: propId }: { id: string }) {
     }
   }, [propId]);
 
-  // Step 2: Fetch from Firestore once we have a real ID
+  // Step 2: Fetch from Firestore once we have a real ID (wait for auth to settle)
   useEffect(() => {
     if (!id || id === "_") return;
+    if (authLoading) return; // wait for auth to resolve before checking ownership
     let cancelled = false;
     (async () => {
       try {
         const doc = await getAnalysisById(id);
         if (!cancelled && doc) {
+          // Block access to private reports unless current user is the owner
+          if (doc.visibility === "private" && doc.uploader_uid !== uid) {
+            setAccessDenied(true);
+            setLoading(false);
+            return;
+          }
           setAnalysis(doc);
           const cmts = await getStoredComments(id);
           if (!cancelled) setComments(cmts);
@@ -67,15 +81,77 @@ export default function ReportClient({ id: propId }: { id: string }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, uid, authLoading]);
+
+  // Auto-open discussion panel if ?discuss=section_ref is in the URL
+  useEffect(() => {
+    if (analysis && !discussAutoOpened.current) {
+      const discussSection = searchParams.get("discuss");
+      if (discussSection) {
+        discussAutoOpened.current = true;
+        setCommentPanel({ name: discussSection, ref: discussSection });
+      }
+    }
+  }, [analysis, searchParams]);
 
   // ── Handlers ───────────────────────────────────────────────────────
   const openDiscuss = (ref: string, name: string) => setCommentPanel({ name, ref });
 
-  const handleAddComment = async (text: string, userName: string, sectionRef: string) => {
+  const handleAddComment = async (
+    text: string,
+    userName: string,
+    sectionRef: string,
+    isStarred: boolean,
+    commenterEmail: string | null,
+    commenterUid: string | null,
+  ) => {
     try {
-      const newComment = await storeComment(id, { user_name: userName, text, section_reference: sectionRef });
+      // 1. Post the user's comment
+      const newComment = await storeComment(id, {
+        user_name: userName,
+        text,
+        section_reference: sectionRef,
+        is_starred: isStarred,
+        commenter_email: commenterEmail,
+        commenter_uid: commenterUid,
+      });
       setComments((prev) => [...prev, newComment]);
+
+      // 2. Generate Gemini auto-reply (non-blocking — don't fail the comment)
+      if (analysis && isGeminiAvailable()) {
+        try {
+          const sectionComments = [...comments, newComment].filter(
+            (c) => c.section_reference === sectionRef
+          );
+
+          const reply = await generateCommentReply({
+            fileName: analysis.display_name || analysis.filename,
+            docSummary: analysis.doc_summary || "",
+            analysisResultJson: JSON.stringify(analysis.analysis_result),
+            sectionRef,
+            existingComments: sectionComments.map((c) => ({
+              user_name: c.user_name,
+              text: c.text,
+              is_auto_reply: c.is_auto_reply,
+            })),
+            newCommentText: text,
+            newCommentUser: userName,
+          });
+
+          // 3. Post the auto-reply as a system comment
+          const autoReply = await storeComment(id, {
+            user_name: "DocDetector",
+            text: reply.reply,
+            section_reference: sectionRef,
+            is_auto_reply: true,
+            comment_category: reply.category,
+            escalation_summary: reply.can_answer ? null : reply.escalation_summary,
+          });
+          setComments((prev) => [...prev, autoReply]);
+        } catch (err) {
+          console.warn("[AutoReply] Gemini auto-reply failed (non-blocking):", err);
+        }
+      }
     } catch (err) {
       console.error("Failed to add comment:", err);
     }
@@ -103,6 +179,23 @@ export default function ReportClient({ id: propId }: { id: string }) {
         <div className="flex flex-col items-center gap-4">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-zinc-700 border-t-blue-500" />
           <p className="text-zinc-500 text-sm">Running full analysis...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="text-center max-w-sm">
+          <div className="mx-auto mb-4 rounded-full bg-amber-500/10 p-4 w-fit">
+            <XCircle className="h-10 w-10 text-amber-400" />
+          </div>
+          <h2 className="text-xl font-semibold text-zinc-200">Private Report</h2>
+          <p className="mt-2 text-sm text-zinc-400">
+            This report is private and can only be viewed by its owner.
+          </p>
+          <button onClick={() => router.push("/")} className="mt-6 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-500 transition-colors cursor-pointer">Back to Home</button>
         </div>
       </div>
     );
@@ -336,6 +429,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
               <Printer className="h-3.5 w-3.5 text-emerald-400" />
               Print Summary Report
             </button>
+            <UserMenu />
           </div>
         </div>
       </header>

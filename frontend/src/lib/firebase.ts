@@ -11,15 +11,24 @@
 //   ├─ file_size         (number)   — bytes
 //   ├─ file_type         (string)   — MIME type
 //   ├─ summary           (string)   — max 300-word analysis summary
+//   ├─ visibility        (string)   — "public" | "private"
+//   ├─ uploader_uid      (string|null) — Firebase Auth UID (null = anonymous)
+//   ├─ uploader_email    (string|null) — uploader email for display
 //   ├─ uploaded_at       (timestamp)
 //   ├─ analysis_result   (map)      — full AnalysisResult object
 //   └─ comments/{cid}
-//        ├─ user_name           (string)   — email address
+//        ├─ user_name           (string)   — display name or "Anonymous"
 //        ├─ text                (string)
 //        ├─ section_reference   (string)
 //        ├─ timestamp           (timestamp)
 //        ├─ likes               (number)   — like count
-//        └─ dislikes            (number)   — dislike count
+//        ├─ dislikes            (number)   — dislike count
+//        ├─ is_starred          (boolean)  — false = anonymous, true = starred
+//        ├─ commenter_email     (string|null) — only for starred comments
+//        ├─ commenter_uid       (string|null) — Firebase Auth UID for starred
+//        ├─ is_auto_reply       (boolean)  — true = Gemini auto-response
+//        ├─ comment_category    (string|null) — classified intent
+//        └─ escalation_summary  (string|null) — set when Gemini escalates to admin
 //
 // glossary/{id}
 //   ├─ term        (string)
@@ -99,6 +108,9 @@ export async function saveAnalysis(data: {
   doc_summary?: string;
   analysis_result: AnalysisResult;
   pdf_highlights?: PdfHighlights;
+  visibility?: "public" | "private";
+  uploader_uid?: string | null;
+  uploader_email?: string | null;
 }): Promise<string> {
   console.log("[Firestore] saveAnalysis: writing document…");
 
@@ -127,6 +139,9 @@ export async function saveAnalysis(data: {
     summary,
     analysis_result: sanitizedResult,
     ...(sanitizedHighlights ? { pdf_highlights: sanitizedHighlights } : {}),
+    visibility: data.visibility || "public",
+    uploader_uid: data.uploader_uid ?? null,
+    uploader_email: data.uploader_email ?? null,
     uploaded_at: Timestamp.now(),
   };
 
@@ -179,14 +194,13 @@ export async function getAllAnalyses(maxResults = 50): Promise<AnalysisDoc[]> {
 
 /**
  * Lightweight platform stats: total files and total words analysed.
- * Reads only word_count and file_size fields (minimal bandwidth).
+ * Counts ALL documents regardless of visibility (global metrics).
  */
 export async function getPlatformStats(): Promise<{ totalFiles: number; totalWords: number }> {
   const snap = await getDocs(collection(db, "analyses"));
   let totalWords = 0;
   snap.docs.forEach((d) => {
     const data = d.data();
-    // Use stored word_count if available, otherwise estimate from file_size
     totalWords += data.word_count || Math.round((data.file_size || 0) / 6);
   });
   return { totalFiles: snap.size, totalWords };
@@ -205,6 +219,10 @@ function toAnalysisDoc(id: string, data: any): AnalysisDoc {
     uploaded_at: data.uploaded_at?.toDate?.() ?? new Date(),
     analysis_result: data.analysis_result,
     ...(data.pdf_highlights ? { pdf_highlights: data.pdf_highlights } : {}),
+    // Auth / visibility — backward-compatible: legacy docs default to public/anonymous
+    visibility: data.visibility ?? "public",
+    uploader_uid: data.uploader_uid ?? null,
+    uploader_email: data.uploader_email ?? null,
   };
 }
 
@@ -290,6 +308,12 @@ export async function getComments(
       timestamp: data.timestamp?.toDate?.() ?? new Date(),
       likes: data.likes ?? 0,
       dislikes: data.dislikes ?? 0,
+      is_starred: data.is_starred ?? false,
+      commenter_email: data.commenter_email ?? null,
+      commenter_uid: data.commenter_uid ?? null,
+      is_auto_reply: data.is_auto_reply ?? false,
+      comment_category: data.comment_category ?? null,
+      escalation_summary: data.escalation_summary ?? null,
     };
   });
 }
@@ -299,16 +323,35 @@ export async function getComments(
  */
 export async function addComment(
   analysisId: string,
-  comment: { user_name: string; text: string; section_reference: string }
+  comment: {
+    user_name: string;
+    text: string;
+    section_reference: string;
+    is_starred?: boolean;
+    commenter_email?: string | null;
+    commenter_uid?: string | null;
+    is_auto_reply?: boolean;
+    comment_category?: string | null;
+    escalation_summary?: string | null;
+  }
 ): Promise<CommentDoc> {
   const commentsRef = collection(db, "analyses", analysisId, "comments");
   const ts = Timestamp.now();
-  const docRef = await addDoc(commentsRef, {
-    ...comment,
+  const payload = {
+    user_name: comment.user_name,
+    text: comment.text,
+    section_reference: comment.section_reference,
+    is_starred: comment.is_starred ?? false,
+    commenter_email: comment.commenter_email ?? null,
+    commenter_uid: comment.commenter_uid ?? null,
+    is_auto_reply: comment.is_auto_reply ?? false,
+    comment_category: comment.comment_category ?? null,
+    escalation_summary: comment.escalation_summary ?? null,
     likes: 0,
     dislikes: 0,
     timestamp: ts,
-  });
+  };
+  const docRef = await addDoc(commentsRef, payload);
   return {
     id: docRef.id,
     user_name: comment.user_name,
@@ -317,6 +360,12 @@ export async function addComment(
     timestamp: ts.toDate(),
     likes: 0,
     dislikes: 0,
+    is_starred: payload.is_starred,
+    commenter_email: payload.commenter_email,
+    commenter_uid: payload.commenter_uid,
+    is_auto_reply: payload.is_auto_reply,
+    comment_category: payload.comment_category,
+    escalation_summary: payload.escalation_summary,
   };
 }
 

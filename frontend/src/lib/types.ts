@@ -234,14 +234,26 @@ export interface AnalysisDoc {
   uploaded_at: Date;
   analysis_result: AnalysisResult;
   pdf_highlights?: PdfHighlights;  // Gemini-curated highlights for PDF export
+  // ── Auth / visibility fields ──
+  visibility: "public" | "private";   // tagged at upload time
+  uploader_uid: string | null;        // Firebase Auth UID (null = anonymous)
+  uploader_email: string | null;      // for display & ownership checks
 }
 
 export interface CommentDoc {
   id: string;
-  user_name: string;
+  user_name: string;          // display name or "Anonymous"
   text: string;
   section_reference: string;
   timestamp: Date;
   likes: number;
   dislikes: number;
+  // ── Starred comment fields ──
+  is_starred: boolean;         // false = anonymous, true = starred (requires auth)
+  commenter_email: string | null;  // stored only for starred comments
+  commenter_uid: string | null;    // Firebase Auth UID for starred comments
+  // ── Auto-reply fields ──
+  is_auto_reply: boolean;      // true = Gemini-generated response
+  comment_category: string | null; // "appreciative" | "abusive" | "question" | "suggestion" | "contesting" | null
+  escalation_summary: string | null; // set when Gemini can't answer — sent to admin
 }

@@ -10,6 +10,7 @@ import {
 import { GLOSSARY, GLOSSARY_CATEGORIES } from "@/lib/glossary";
 import type { GlossaryEntry } from "@/lib/glossary";
 import { seedGlossary, isGlossarySeeded } from "@/lib/firebase";
+import UserMenu from "@/components/UserMenu";
 
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string; badge: string }> = {
   "Overall":               { bg: "bg-blue-500/5",    text: "text-blue-400",    border: "border-blue-500/20",    badge: "bg-blue-500/10" },
@@ -157,9 +158,10 @@ export default function GlossaryPage() {
           <Link href="/" className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
             <ArrowLeft className="h-4 w-4" /> Back to Home
           </Link>
-          <div className="flex items-center gap-2 text-sm text-zinc-500">
+          <div className="flex items-center gap-3 text-sm text-zinc-500">
             <BookOpen className="h-4 w-4" />
             <span>{GLOSSARY.length} terms</span>
+            <UserMenu />
           </div>
         </div>
       </header>

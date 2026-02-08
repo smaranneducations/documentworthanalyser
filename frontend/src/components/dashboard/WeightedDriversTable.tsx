@@ -5,7 +5,7 @@ import HelpTooltip from "@/components/HelpTooltip";
 
 interface Props {
   drivers: WeightedDriver[];
-  /** Map of driver name → tooltip text */
+  /** Map of driver name → static tooltip text (generic description) */
   driverTooltips?: Record<string, string>;
 }
 
@@ -17,7 +17,12 @@ export default function WeightedDriversTable({ drivers, driverTooltips }: Props)
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-sm font-medium text-zinc-300 flex items-center gap-1">
               {driverTooltips?.[d.name] ? (
-                <HelpTooltip text={driverTooltips[d.name]} position="right">
+                <HelpTooltip
+                  text={driverTooltips[d.name]}
+                  insight={d.rationale || undefined}
+                  position="right"
+                  maxWidth={360}
+                >
                   <span className="cursor-help border-b border-dotted border-zinc-600">{d.name}</span>
                 </HelpTooltip>
               ) : (

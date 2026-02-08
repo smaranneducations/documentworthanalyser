@@ -6,7 +6,8 @@ import Link from "next/link";
 import {
   Shield, FileText, ArrowRight, TrendingUp, Eye, Sparkles,
   BarChart3, Brain, Search, Users, Zap, Loader2, BookOpen,
-  Play, FileText as ReadIcon, AlertTriangle, X,
+  Play, FileText as ReadIcon, AlertTriangle, X, MessageSquare,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import UploadGatekeeper from "@/components/UploadGatekeeper";
 import HelpTooltip from "@/components/HelpTooltip";
@@ -106,6 +107,119 @@ function RejectionModal({
         <p className="text-center text-xs text-zinc-600 mt-3">
           Returning to home in 60 seconds&hellip;
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Previously Assessed — collapsed list ────────────────────────────────
+function PreviouslyAssessed({
+  loading,
+  analyses,
+  getScoreColor,
+  getScoreBg,
+  onView,
+}: {
+  loading: boolean;
+  analyses: AnalysisDoc[];
+  getScoreColor: (s: number) => string;
+  getScoreBg: (s: number) => string;
+  onView: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 mb-6">
+        <Loader2 className="h-4 w-4 animate-spin text-zinc-600 mr-2" />
+        <span className="text-zinc-600 text-sm">Loading recent analyses&hellip;</span>
+      </div>
+    );
+  }
+
+  if (analyses.length === 0) return null;
+
+  const latest = analyses[0];
+  const latestResult = latest.analysis_result;
+  const hasMore = analyses.length > 1;
+
+  return (
+    <div className="mb-6">
+      {/* Latest file — always visible */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-hidden">
+        <button
+          onClick={() => onView(latest.id)}
+          className="group w-full p-3.5 text-left hover:bg-zinc-900 transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className={`shrink-0 rounded-lg ${getScoreBg(latestResult.overall_trust_score)} px-2.5 py-1.5`}>
+              <span className={`text-base font-bold ${getScoreColor(latestResult.overall_trust_score)}`}>
+                {latestResult.overall_trust_score}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-zinc-200 truncate group-hover:text-blue-400 transition-colors">
+                {latest.filename}
+              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs text-zinc-600">
+                  {latest.uploaded_at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+                <span className="text-zinc-800">&middot;</span>
+                <span className="text-xs text-zinc-500">{latestResult.provider_consumer.classification}</span>
+                <span className="text-zinc-800">&middot;</span>
+                <span className="text-xs text-zinc-500">{latestResult.audience_level.classification}</span>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-zinc-700 group-hover:text-blue-400 transition-colors shrink-0" />
+          </div>
+        </button>
+
+        {/* Expand toggle */}
+        {hasMore && (
+          <>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="w-full flex items-center justify-center gap-1.5 border-t border-zinc-800 py-2 text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
+            >
+              {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              {expanded ? "Collapse" : `View all ${analyses.length} reports`}
+            </button>
+
+            {/* Expanded list */}
+            {expanded && (
+              <div className="border-t border-zinc-800 max-h-[300px] overflow-y-auto scrollbar-thin">
+                {analyses.slice(1).map((a) => {
+                  const r = a.analysis_result;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => onView(a.id)}
+                      className="group w-full p-3 text-left border-b border-zinc-800/50 last:border-b-0 hover:bg-zinc-900 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`shrink-0 rounded-lg ${getScoreBg(r.overall_trust_score)} px-2 py-1`}>
+                          <span className={`text-sm font-bold ${getScoreColor(r.overall_trust_score)}`}>
+                            {r.overall_trust_score}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-zinc-300 truncate group-hover:text-blue-400 transition-colors">
+                            {a.filename}
+                          </p>
+                          <span className="text-xs text-zinc-600">
+                            {a.uploaded_at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
+                        </div>
+                        <ArrowRight className="h-3.5 w-3.5 text-zinc-700 group-hover:text-blue-400 transition-colors shrink-0" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -325,8 +439,35 @@ export default function HomePage() {
           ))}
         </div>
 
-        {/* ── Why This Agent ──────────────────────────────────────── */}
-        <div className="flex items-center justify-center gap-6 mb-12 rounded-xl bg-zinc-900/70 border border-zinc-800/60 px-8 py-4">
+        {/* ── Upload ────────────────────────────────────────────── */}
+        <div className="max-w-xl mx-auto mb-10">
+          <UploadGatekeeper
+            onCheckHash={handleCheckHash}
+            onAnalyze={handleAnalyze}
+            onViewReport={handleViewReport}
+          />
+        </div>
+
+        {/* ── P1: Contest CTA ─────────────────────────────────── */}
+        <div className="mb-10 rounded-2xl border border-blue-500/20 bg-gradient-to-r from-blue-500/5 via-blue-500/10 to-blue-500/5 p-6 text-center">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <div className="rounded-full bg-blue-500/15 p-2.5">
+              <MessageSquare className="h-5 w-5 text-blue-400" />
+            </div>
+            <h3 className="text-lg font-bold text-zinc-100">Don&apos;t agree with the assessment?</h3>
+          </div>
+          <p className="text-sm text-zinc-300 max-w-xl mx-auto leading-relaxed">
+            Please help us by <span className="text-blue-400 font-semibold">contesting the analysis in comments</span>.
+            Every section in the report has a{" "}
+            <span className="inline-flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 rounded px-1.5 py-0.5 text-blue-400 text-xs font-medium">
+              <MessageSquare className="h-3 w-3" /> Comment
+            </span>{" "}
+            button — click it to share your perspective. Your feedback makes the analysis better for everyone.
+          </p>
+        </div>
+
+        {/* ── P2: Why This Agent ───────────────────────────────── */}
+        <div className="flex items-center justify-center gap-6 mb-10 rounded-xl bg-zinc-900/70 border border-zinc-800/60 px-8 py-4">
           <span className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Why This Agent</span>
           <a
             href="https://www.youtube.com/watch?v=_-i7Zo1NiR0"
@@ -348,92 +489,24 @@ export default function HomePage() {
           </a>
         </div>
 
-        {/* ── Upload + Recently Assessed — side by side ─────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-          {/* Left: Upload */}
-          <div className="flex flex-col">
-            <UploadGatekeeper
-              onCheckHash={handleCheckHash}
-              onAnalyze={handleAnalyze}
-              onViewReport={handleViewReport}
-            />
-          </div>
-
-          {/* Right: Previously Assessed */}
-          <div className="flex flex-col min-h-0">
-            <h3 className="text-sm font-semibold flex items-center gap-2 text-zinc-400 uppercase tracking-wider mb-3">
-              <FileText className="h-4 w-4 text-zinc-500" />
-              Previously Assessed
-              {!loading && recentAnalyses.length > 0 && (
-                <span className="text-xs font-normal text-zinc-600 normal-case tracking-normal">
-                  ({recentAnalyses.length})
-                </span>
-              )}
-            </h3>
-
-            {loading && (
-              <div className="flex-1 flex items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 p-8">
-                <div className="text-center">
-                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-zinc-600 mb-2" />
-                  <p className="text-zinc-600 text-sm">Loading...</p>
-                </div>
-              </div>
-            )}
-
-            {!loading && recentAnalyses.length === 0 && (
-              <div className="flex-1 flex items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900/40 p-8">
-                <div className="text-center">
-                  <FileText className="mx-auto h-10 w-10 text-zinc-800 mb-2" />
-                  <p className="text-zinc-600 text-sm">No documents analyzed yet.</p>
-                </div>
-              </div>
-            )}
-
-            {!loading && recentAnalyses.length > 0 && (
-              <div className="flex-1 overflow-y-auto max-h-[420px] space-y-2 pr-1 scrollbar-thin">
-                {recentAnalyses.map((a) => {
-                  const r = a.analysis_result;
-                  return (
-                    <button
-                      key={a.id}
-                      onClick={() => router.push(`/report/${a.id}`)}
-                      className="group w-full rounded-xl border border-zinc-800 bg-zinc-900/60 p-3.5 text-left hover:border-zinc-700 hover:bg-zinc-900 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`shrink-0 rounded-lg ${getScoreBg(r.overall_trust_score)} px-2.5 py-1.5`}>
-                          <span className={`text-base font-bold ${getScoreColor(r.overall_trust_score)}`}>
-                            {r.overall_trust_score}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-zinc-200 truncate group-hover:text-blue-400 transition-colors">
-                            {a.filename}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-zinc-600">
-                              {a.uploaded_at.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                            </span>
-                            <span className="text-zinc-800">&middot;</span>
-                            <span className="text-xs text-zinc-500">{r.provider_consumer.classification}</span>
-                            <span className="text-zinc-800">&middot;</span>
-                            <span className="text-xs text-zinc-500">{r.audience_level.classification}</span>
-                          </div>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-zinc-700 group-hover:text-blue-400 transition-colors shrink-0" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+        {/* ── Previously Assessed (collapsed) ─────────────────── */}
+        <PreviouslyAssessed
+          loading={loading}
+          analyses={recentAnalyses}
+          getScoreColor={getScoreColor}
+          getScoreBg={getScoreBg}
+          onView={(id) => router.push(`/report/${id}`)}
+        />
       </main>
 
-      <footer className="border-t border-zinc-800 mt-16">
-        <div className="mx-auto max-w-6xl px-6 py-6 flex items-center justify-between text-xs text-zinc-600">
-          <p>DocDetector &mdash; AI-Powered Agentic Document Analyzer</p>
-          <p>5 Decision Modules &bull; Content Forensics &bull; Bias Detection</p>
+      {/* ── Footer ──────────────────────────────────────────── */}
+      <footer className="border-t border-zinc-800 mt-12">
+        <div className="mx-auto max-w-6xl px-6 py-5 text-center text-xs text-zinc-500">
+          <p>DocDetector &mdash; AI-Powered Agentic Document Analyzer &bull; 5 Decision Modules &bull; Content Forensics &bull; Bias Detection</p>
+          <p className="mt-1.5">
+            Want to build such an agentic app? Contact{" "}
+            <a href="mailto:contactbhasker7483@gmail.com" className="text-blue-400 hover:text-blue-300 underline">contactbhasker7483@gmail.com</a>
+          </p>
         </div>
       </footer>
 

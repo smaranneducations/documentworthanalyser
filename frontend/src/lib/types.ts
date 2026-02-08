@@ -62,6 +62,7 @@ export interface DeceptionDetection {
   passive_voice_instances: string[];
   jargon_masking: string[];
   manipulation_index: number;         // 0-100
+  manipulation_rationale?: string;    // Gemini's explanation of manipulation severity
 }
 
 export interface LogicalFallacy {

@@ -989,6 +989,7 @@ export function mergeGeminiResults(
     deception: {
       ...heuristic.deception_raw,
       manipulation_index: clamp(Math.round(deceptionJudgment.manipulation_index), 0, 100),
+      manipulation_rationale: deceptionJudgment.rationale || undefined,
     },
     fallacies: safe(L1.fallacies, { fallacies: [], fallacy_density: 0 }) as FallacyDetection,
     fluff: heuristic.fluff,

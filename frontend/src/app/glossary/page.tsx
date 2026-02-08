@@ -281,8 +281,12 @@ export default function GlossaryPage() {
         <div className="mt-12 rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-center">
           <p className="text-sm text-zinc-500">
             All scores use the <span className="text-zinc-300 font-medium">Weighted Composite Formula</span>:
-            Score = Σ(rating × weight) / n. Each module&apos;s drivers are scored 1-10 by text pattern analysis
+            Score = Σ(rating × weight) / n. Each module&apos;s drivers are scored 1-10 by AI analysis
             and combined using predefined weights that sum to 1.0.
+          </p>
+          <p className="mt-3 text-xs text-zinc-500">
+            Want to build such an agentic app? Contact{" "}
+            <a href="mailto:contactbhasker7483@gmail.com" className="text-blue-400 hover:text-blue-300 underline">contactbhasker7483@gmail.com</a>
           </p>
         </div>
       </main>

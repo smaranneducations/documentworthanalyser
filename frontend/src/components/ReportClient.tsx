@@ -295,10 +295,11 @@ export default function ReportClient({ id: propId }: { id: string }) {
               <p className="text-xs uppercase tracking-widest text-zinc-500 font-semibold">At a Glance</p>
               <button
                 onClick={() => openDiscuss("at_a_glance", "At a Glance")}
-                className="rounded-lg p-2 text-zinc-600 hover:bg-zinc-800 hover:text-blue-400 transition-colors no-print"
-                title="Discuss this section"
+                className="flex items-center gap-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 px-2.5 py-1.5 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors no-print"
+                title="Contest this finding and comment"
               >
-                <MessageSquare className="h-4 w-4" />
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-medium uppercase tracking-wider hidden sm:inline">Comment</span>
               </button>
             </div>
             <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
@@ -401,7 +402,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
           <SectionCard title="Deception Detector" tooltip={tip("section_forensics")} icon={AlertTriangle} iconColor="text-red-400" iconBg="bg-red-500/10" sectionRef="forensics" onDiscuss={openDiscuss}>
             <div className="text-center mb-4">
               <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1 flex items-center justify-center">
-                <HelpTooltip text={tip("manipulation_index")} position="top">
+                <HelpTooltip text={tip("manipulation_index")} insight={r.forensics.deception.manipulation_rationale} position="top" maxWidth={360}>
                   <span className="cursor-help border-b border-dotted border-zinc-600">Manipulation Index</span>
                 </HelpTooltip>
               </p>
@@ -475,7 +476,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
           <SectionCard title="Logical Fallacy Hunter" tooltip={tip("section_fallacies")} icon={Scale} iconColor="text-amber-400" iconBg="bg-amber-500/10" sectionRef="fallacies" onDiscuss={openDiscuss}>
             <div className="text-center mb-4">
               <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1 flex items-center justify-center">
-                <HelpTooltip text={tip("fallacy_density")} position="top">
+                <HelpTooltip text={tip("fallacy_density")} insight={r.forensics.fallacies.fallacies.length > 0 ? `${r.forensics.fallacies.fallacies.length} fallacy(ies) found: ${r.forensics.fallacies.fallacies.map(f => f.type).join(", ")}.` : "No logical fallacies detected."} position="top" maxWidth={360}>
                   <span className="cursor-help border-b border-dotted border-zinc-600">Fallacy Density</span>
                 </HelpTooltip>
               </p>
@@ -499,7 +500,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium text-zinc-200 flex items-center">
                           {fallacyTip ? (
-                            <HelpTooltip text={fallacyTip} position="right">
+                            <HelpTooltip text={fallacyTip} insight={f.evidence ? `"${f.evidence}" (${f.severity} severity)` : undefined} position="right" maxWidth={380}>
                               <span className="cursor-help border-b border-dotted border-zinc-600">{f.type}</span>
                             </HelpTooltip>
                           ) : f.type}
@@ -582,7 +583,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
           <SectionCard title="Implementation Readiness" tooltip={tip("section_implementation")} icon={CheckCircle2} iconColor="text-emerald-400" iconBg="bg-emerald-500/10" sectionRef="implementation" onDiscuss={openDiscuss}>
             <ClassificationBadge label="Verdict" value={r.implementation_readiness.verdict} tooltip={tip("section_implementation")} />
             <div className="mt-4 text-center mb-3">
-              <HelpTooltip text={tip("readiness_score")} position="top">
+              <HelpTooltip text={tip("readiness_score")} insight={`Verdict: ${r.implementation_readiness.verdict}. ${r.implementation_readiness.artifact_presence.filter(a => a.found).length}/${r.implementation_readiness.artifact_presence.length} artifact types found.`} position="top" maxWidth={360}>
                 <span className="cursor-help">
                   <span className="text-3xl font-bold text-emerald-400">{r.implementation_readiness.readiness_score}</span>
                   <span className="text-zinc-500"> / 10</span>
@@ -649,7 +650,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
           <SectionCard title="Hype vs. Reality" tooltip={tip("section_hype")} icon={TrendingUp} iconColor="text-pink-400" iconBg="bg-pink-500/10" sectionRef="hype" onDiscuss={openDiscuss}>
             <ClassificationBadge label="Assessment" value={r.hype_reality.classification} tooltip={tip("section_hype")} />
             <div className="mt-4 text-center mb-3">
-              <HelpTooltip text={tip("hype_score")} position="top">
+              <HelpTooltip text={tip("hype_score")} insight={r.hype_reality.balance_assessment || undefined} position="top" maxWidth={360}>
                 <span className="cursor-help">
                   <span className={`text-3xl font-bold ${r.hype_reality.hype_score > 80 ? "text-red-400" : r.hype_reality.hype_score > 50 ? "text-yellow-400" : "text-emerald-400"}`}>
                     {r.hype_reality.hype_score}
@@ -682,7 +683,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
           <SectionCard title="Regulatory & Ethics" tooltip={tip("section_regulatory")} icon={ShieldAlert} iconColor="text-cyan-400" iconBg="bg-cyan-500/10" sectionRef="regulatory" onDiscuss={openDiscuss}>
             <ClassificationBadge label="Safety Level" value={r.regulatory_safety.safety_level} tooltip={tip("safety_score")} />
             <div className="mt-4 text-center mb-3">
-              <HelpTooltip text={tip("safety_score")} position="top">
+              <HelpTooltip text={tip("safety_score")} insight={r.regulatory_safety.red_flags.length > 0 ? `Red flags: ${r.regulatory_safety.red_flags.join("; ")}` : "No red flags detected."} position="top" maxWidth={380}>
                 <span className="cursor-help">
                   <span className={`text-3xl font-bold ${r.regulatory_safety.safety_score >= 70 ? "text-emerald-400" : r.regulatory_safety.safety_score >= 40 ? "text-yellow-400" : "text-red-400"}`}>
                     {r.regulatory_safety.safety_score}
@@ -745,13 +746,13 @@ export default function ReportClient({ id: propId }: { id: string }) {
           {/* Composition */}
           <SectionCard title="Composition Scoring" tooltip={tip("section_composition")} icon={BarChart3} iconColor="text-green-400" iconBg="bg-green-500/10" sectionRef="composition" onDiscuss={openDiscuss}>
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <HelpTooltip text={tip("visual_intensity")} position="top">
+              <HelpTooltip text={tip("visual_intensity")} insight={r.visual_intensity.assessment || undefined} position="top" maxWidth={360}>
                 <div className="text-center cursor-help">
                   <p className="text-xs text-zinc-500 uppercase mb-1 border-b border-dotted border-zinc-600 inline">Visual</p>
                   <div><span className="text-3xl font-bold text-green-400">{r.visual_intensity.score}</span><span className="text-zinc-500"> /10</span></div>
                 </div>
               </HelpTooltip>
-              <HelpTooltip text={tip("data_intensity")} position="top">
+              <HelpTooltip text={tip("data_intensity")} insight={r.data_intensity.assessment || undefined} position="top" maxWidth={360}>
                 <div className="text-center cursor-help">
                   <p className="text-xs text-zinc-500 uppercase mb-1 border-b border-dotted border-zinc-600 inline">Data</p>
                   <div><span className="text-3xl font-bold text-blue-400">{r.data_intensity.score}</span><span className="text-zinc-500"> /10</span></div>
@@ -776,7 +777,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
           <SectionCard title="Bias Detection" tooltip={tip("section_bias")} icon={Shield} iconColor="text-red-400" iconBg="bg-red-500/10" sectionRef="bias" onDiscuss={openDiscuss}>
             <div className="text-center mb-4">
               <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1 flex items-center justify-center">
-                <HelpTooltip text={tip("overall_bias_score")} position="top">
+                <HelpTooltip text={tip("overall_bias_score")} insight={r.bias_detection.biases.length > 0 ? `${r.bias_detection.biases.length} bias type(s) detected: ${r.bias_detection.biases.map(b => b.type).join(", ")}.` : "No significant biases detected."} position="top" maxWidth={360}>
                   <span className="cursor-help border-b border-dotted border-zinc-600">Overall Bias Score</span>
                 </HelpTooltip>
               </p>
@@ -800,7 +801,7 @@ export default function ReportClient({ id: propId }: { id: string }) {
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium text-zinc-200 flex items-center">
                           {biasTip ? (
-                            <HelpTooltip text={biasTip} position="right">
+                            <HelpTooltip text={biasTip} insight={b.evidence ? `${b.evidence} (${b.severity} severity)` : undefined} position="right" maxWidth={380}>
                               <span className="cursor-help border-b border-dotted border-zinc-600">{b.type} Bias</span>
                             </HelpTooltip>
                           ) : <>{b.type} Bias</>}
@@ -849,6 +850,30 @@ export default function ReportClient({ id: propId }: { id: string }) {
         </div>
       </section>
 
+      {/* ── Visible Footer — Contest CTA + Contact ────────────────── */}
+      <div className="mx-auto max-w-7xl px-6 py-10 no-print">
+        <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-r from-blue-500/5 via-blue-500/10 to-blue-500/5 p-6 text-center mb-6">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <div className="rounded-full bg-blue-500/15 p-2.5">
+              <MessageSquare className="h-5 w-5 text-blue-400" />
+            </div>
+            <h3 className="text-lg font-bold text-zinc-100">Don&apos;t agree with the assessment?</h3>
+          </div>
+          <p className="text-sm text-zinc-300 max-w-xl mx-auto leading-relaxed">
+            Please help us by <span className="text-blue-400 font-semibold">contesting the analysis in comments</span>.
+            Every section above has a{" "}
+            <span className="inline-flex items-center gap-1 bg-blue-500/10 border border-blue-500/20 rounded px-1.5 py-0.5 text-blue-400 text-xs font-medium">
+              <MessageSquare className="h-3 w-3" /> Comment
+            </span>{" "}
+            button — click it to share your perspective.
+          </p>
+        </div>
+        <p className="text-center text-xs text-zinc-500">
+          Want to build such an agentic app? Contact{" "}
+          <a href="mailto:contactbhasker7483@gmail.com" className="text-blue-400 hover:text-blue-300 underline">contactbhasker7483@gmail.com</a>
+        </p>
+      </div>
+
       {/* ═══════════════════════════════════════════════════════════════
           PRINT-ONLY: CLOSING PAGE — links & call to action
           ═══════════════════════════════════════════════════════════════ */}
@@ -891,6 +916,10 @@ export default function ReportClient({ id: propId }: { id: string }) {
 
           <p className="mt-4 text-xs text-zinc-600">
             DocDetector &middot; {analysis.uploaded_at.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+          </p>
+          <p className="mt-2 text-xs text-zinc-500">
+            Want to build such an agentic app? Contact{" "}
+            <a href="mailto:contactbhasker7483@gmail.com" className="text-blue-400 hover:text-blue-300 underline">contactbhasker7483@gmail.com</a>
           </p>
         </div>
       </section>

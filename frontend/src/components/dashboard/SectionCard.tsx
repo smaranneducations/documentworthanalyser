@@ -38,10 +38,11 @@ export default function SectionCard({
         </div>
         <button
           onClick={() => onDiscuss(sectionRef, title)}
-          className="rounded-lg p-2 text-zinc-600 hover:bg-zinc-800 hover:text-blue-400 transition-colors"
-          title="Discuss this section"
+          className="group/comment flex items-center gap-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 px-2.5 py-1.5 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 transition-colors no-print"
+          title="Contest this finding and comment"
         >
-          <MessageSquare className="h-4 w-4" />
+          <MessageSquare className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-medium uppercase tracking-wider hidden sm:inline">Comment</span>
         </button>
       </div>
       {children}

@@ -4,6 +4,8 @@ import { HelpCircle } from "lucide-react";
 
 interface HelpTooltipProps {
   text: string;
+  /** Document-specific AI insight shown below the generic description */
+  insight?: string;
   /** Inline mode wraps children and shows tooltip on hover of the whole element */
   children?: React.ReactNode;
   /** Show the small ? icon. Defaults to true when no children. */
@@ -16,6 +18,7 @@ interface HelpTooltipProps {
 
 export default function HelpTooltip({
   text,
+  insight,
   children,
   showIcon,
   maxWidth = 280,
@@ -52,8 +55,17 @@ export default function HelpTooltip({
         `}
         style={{ maxWidth }}
       >
-        <span className="block rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-xs text-zinc-300 leading-relaxed shadow-xl">
-          {text}
+        <span className="block rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-2 text-xs leading-relaxed shadow-xl">
+          <span className="text-zinc-300">{text}</span>
+          {insight && (
+            <>
+              <span className="block border-t border-zinc-700 my-1.5" />
+              <span className="block text-blue-300/90 italic">
+                <span className="text-blue-400 not-italic font-medium">In this document: </span>
+                {insight}
+              </span>
+            </>
+          )}
         </span>
         <span className={`absolute w-0 h-0 border-4 ${arrowClasses[position]}`} />
       </span>

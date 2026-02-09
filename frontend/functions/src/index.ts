@@ -10,8 +10,14 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
+import {
+  runGeminiPipeline,
+  checkDocumentFitness,
+  generateCommentReply,
+} from "./gemini-server";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -213,5 +219,93 @@ export const onCommentCreated = onDocumentCreated(
     console.log(
       `[onCommentCreated] Emails sent to: ${Array.from(recipients).join(", ")}`
     );
+  }
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CALLABLE FUNCTIONS: Gemini API proxy (keeps API key server-side)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Check document fitness — quick Gemini call to classify document.
+ * Callable from any client (no auth required — anonymous uploads allowed).
+ */
+export const geminiCheckFitness = onCall(
+  { timeoutSeconds: 60, memory: "256MiB" },
+  async (request) => {
+    const { documentText } = request.data;
+    if (!documentText || typeof documentText !== "string") {
+      throw new HttpsError("invalid-argument", "documentText is required");
+    }
+    if (documentText.length > 200000) {
+      throw new HttpsError("invalid-argument", "Document text too large (max 200k chars)");
+    }
+
+    try {
+      const result = await checkDocumentFitness(documentText);
+      return result;
+    } catch (err) {
+      console.error("[geminiCheckFitness] Error:", err);
+      throw new HttpsError("internal", "Fitness check failed");
+    }
+  }
+);
+
+/**
+ * Run the full 5-layer Gemini analysis pipeline.
+ * Callable from any client (anonymous uploads are public).
+ */
+export const geminiAnalyze = onCall(
+  { timeoutSeconds: 300, memory: "512MiB" },
+  async (request) => {
+    const { documentText, heuristicPrePass } = request.data;
+    if (!documentText || typeof documentText !== "string") {
+      throw new HttpsError("invalid-argument", "documentText is required");
+    }
+    if (!heuristicPrePass || typeof heuristicPrePass !== "object") {
+      throw new HttpsError("invalid-argument", "heuristicPrePass is required");
+    }
+    if (documentText.length > 200000) {
+      throw new HttpsError("invalid-argument", "Document text too large (max 200k chars)");
+    }
+
+    try {
+      const result = await runGeminiPipeline(documentText, heuristicPrePass);
+      return result;
+    } catch (err) {
+      console.error("[geminiAnalyze] Error:", err);
+      throw new HttpsError("internal", "Gemini analysis pipeline failed");
+    }
+  }
+);
+
+/**
+ * Generate an AI auto-reply to a comment.
+ * Callable from any client.
+ */
+export const geminiCommentReply = onCall(
+  { timeoutSeconds: 60, memory: "256MiB" },
+  async (request) => {
+    const { fileName, docSummary, analysisResultJson, sectionRef, existingComments, newCommentText, newCommentUser } = request.data;
+
+    if (!newCommentText || typeof newCommentText !== "string") {
+      throw new HttpsError("invalid-argument", "newCommentText is required");
+    }
+
+    try {
+      const result = await generateCommentReply({
+        fileName: fileName || "",
+        docSummary: docSummary || "",
+        analysisResultJson: analysisResultJson || "{}",
+        sectionRef: sectionRef || "",
+        existingComments: existingComments || [],
+        newCommentText,
+        newCommentUser: newCommentUser || "Anonymous",
+      });
+      return result;
+    } catch (err) {
+      console.error("[geminiCommentReply] Error:", err);
+      throw new HttpsError("internal", "Comment reply generation failed");
+    }
   }
 );

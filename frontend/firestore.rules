@@ -2,20 +2,65 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Analyses: open access during development (lock down before production)
-    match /analyses/{analysisId} {
-      allow read, write: if true;
 
-      // Comments sub-collection
+    // ── Analyses ──────────────────────────────────────────────────────
+    match /analyses/{analysisId} {
+      // Anyone can read public analyses
+      // Private analyses: only the uploader can read
+      allow read: if resource.data.visibility == "public"
+                  || (request.auth != null && resource.data.uploader_uid == request.auth.uid);
+
+      // Only authenticated users OR the server (Cloud Functions) can create
+      // Anyone can create (anonymous uploads are public by default)
+      allow create: if true;
+
+      // No client-side updates or deletes to analyses
+      allow update, delete: if false;
+
+      // ── Comments sub-collection ─────────────────────────────────────
       match /comments/{commentId} {
-        allow read, write: if true;
+        // Anyone can read comments
+        allow read: if true;
+
+        // Anyone can create a comment, but:
+        //   - starred comments MUST have auth
+        //   - text must not be empty
+        //   - comment must have required fields
+        allow create: if request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 5000
+                      && request.resource.data.section_reference is string
+                      // Starred comments require authentication
+                      && (request.resource.data.is_starred == false
+                          || (request.resource.data.is_starred == true && request.auth != null));
+
+        // Only like/dislike updates allowed (no other field changes)
+        allow update: if request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['likes', 'dislikes']);
+
+        // No client-side deletes
+        allow delete: if false;
       }
     }
 
-    // Glossary: anyone can read, write (for seeding)
+    // ── Users (analytics) ────────────────────────────────────────────
+    match /users/{userId} {
+      // Only the user themselves can read/write their own doc
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Glossary ─────────────────────────────────────────────────────
     match /glossary/{termId} {
+      // Anyone can read the glossary
       allow read: if true;
-      allow write: if true;
+
+      // Only authenticated users can seed (prevents anonymous vandalism)
+      allow write: if request.auth != null;
+    }
+
+    // ── Deny everything else ─────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

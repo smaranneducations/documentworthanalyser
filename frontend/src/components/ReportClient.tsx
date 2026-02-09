@@ -97,6 +97,9 @@ export default function ReportClient({ id: propId }: { id: string }) {
   // ── Handlers ───────────────────────────────────────────────────────
   const openDiscuss = (ref: string, name: string) => setCommentPanel({ name, ref });
 
+  // ── Rate limiting: max 1 comment per 10 seconds ─────────────────
+  const lastCommentTimeRef = useRef<number>(0);
+
   const handleAddComment = async (
     text: string,
     userName: string,
@@ -105,6 +108,14 @@ export default function ReportClient({ id: propId }: { id: string }) {
     commenterEmail: string | null,
     commenterUid: string | null,
   ) => {
+    // Rate limit: prevent spam (1 comment per 10 seconds)
+    const now = Date.now();
+    if (now - lastCommentTimeRef.current < 10000) {
+      alert("Please wait a few seconds before posting another comment.");
+      return;
+    }
+    lastCommentTimeRef.current = now;
+
     try {
       // 1. Post the user's comment
       const newComment = await storeComment(id, {
